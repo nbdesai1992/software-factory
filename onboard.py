@@ -336,12 +336,12 @@ def generate_render_yaml(config: ProjectConfig, target: Path):
             f"    region: oregon",
             f"    buildCommand: {fe['buildCommand']}",
             f"    startCommand: {fe['startCommand']}",
-            f"    healthCheckPath: /health",
+            f"    healthCheckPath: /api/health",
             f"    envVars:",
             f"      - key: NODE_ENV",
             f"        value: production",
             f"      - key: PORT",
-            f'        value: "{config.dev_server_port}"',
+            f'        value: "10000"',
         ]
         services.append("\n".join(svc))
 
