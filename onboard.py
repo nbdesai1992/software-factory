@@ -227,40 +227,60 @@ def copy_directory(src: Path, dest: Path):
 # Render Blueprint Generation
 # ──────────────────────────────────────────────
 
-RUNTIME_MAP = {
-    "fastapi": "python",
-    "django": "python",
-    "flask": "python",
-    "express": "node",
-    "react": "node",
-    "vue": "node",
-    "svelte": "node",
-    "nextjs": "node",
-    "static-html": "node",
+# Render production commands by framework (monorepo: commands run from rootDir)
+RENDER_BACKEND = {
+    "fastapi": {
+        "runtime": "python",
+        "buildCommand": "pip install -r requirements.txt",
+        "startCommand": "uvicorn main:app --host 0.0.0.0 --port $PORT",
+    },
+    "django": {
+        "runtime": "python",
+        "buildCommand": "pip install -r requirements.txt && python manage.py collectstatic --noinput",
+        "startCommand": "gunicorn project.wsgi:application --bind 0.0.0.0:$PORT",
+    },
+    "flask": {
+        "runtime": "python",
+        "buildCommand": "pip install -r requirements.txt",
+        "startCommand": "gunicorn app:app --bind 0.0.0.0:$PORT",
+    },
+    "express": {
+        "runtime": "node",
+        "buildCommand": "npm install",
+        "startCommand": "node server.js",
+    },
 }
 
-BUILD_CMD_MAP = {
-    "fastapi": "pip install -r backend/requirements.txt",
-    "django": "pip install -r requirements.txt",
-    "flask": "pip install -r requirements.txt",
-    "express": "npm install",
-    "react": "npm install",
-    "vue": "npm install",
-    "svelte": "npm install",
-    "nextjs": "npm install",
-    "static-html": "npm install",
-}
-
-START_CMD_MAP = {
-    "fastapi": "uvicorn backend.main:app --host 0.0.0.0 --port $PORT",
-    "django": "gunicorn project.wsgi:application --bind 0.0.0.0:$PORT",
-    "flask": "gunicorn app:app --bind 0.0.0.0:$PORT",
-    "express": "node server.js",
+RENDER_FRONTEND = {
+    "nextjs": {
+        "buildCommand": "npm install --legacy-peer-deps && npm run build",
+        "startCommand": "npm run start",
+    },
+    "react": {
+        "buildCommand": "npm install && npm run build",
+        "startCommand": "npx serve build -l $PORT",
+    },
+    "vue": {
+        "buildCommand": "npm install && npm run build",
+        "startCommand": "npx serve dist -l $PORT",
+    },
+    "svelte": {
+        "buildCommand": "npm install && npm run build",
+        "startCommand": "npx serve build -l $PORT",
+    },
+    "static-html": {
+        "buildCommand": "npm install",
+        "startCommand": "node server.js",
+    },
 }
 
 
 def generate_render_yaml(config: ProjectConfig, target: Path):
-    """Generate a starter render.yaml blueprint based on project config."""
+    """Generate a starter render.yaml blueprint based on project config.
+
+    Uses monorepo layout: backend/ and frontend/ subdirectories, each
+    configured as a separate Render web service with rootDir.
+    """
     dest = target / "render.yaml"
     if dest.exists():
         print(f"    . render.yaml (already exists — skipping)")
@@ -275,24 +295,26 @@ def generate_render_yaml(config: ProjectConfig, target: Path):
 
     services = []
 
-    # Backend service
+    # Backend service (runs from backend/ directory)
     if config.backend_framework != "none":
-        runtime = RUNTIME_MAP.get(config.backend_framework, "node")
-        build_cmd = BUILD_CMD_MAP.get(config.backend_framework, "npm install")
-        start_cmd = START_CMD_MAP.get(config.backend_framework, "npm start")
+        be = RENDER_BACKEND.get(config.backend_framework, RENDER_BACKEND["express"])
         svc = [
             f"  - type: web",
             f"    name: {config.project_slug}-api",
-            f"    runtime: {runtime}",
+            f"    runtime: {be['runtime']}",
+            f"    rootDir: backend",
             f"    plan: starter",
             f"    region: oregon",
-            f"    buildCommand: {build_cmd}",
-            f"    startCommand: {start_cmd}",
+            f"    buildCommand: {be['buildCommand']}",
+            f"    startCommand: {be['startCommand']}",
             f"    healthCheckPath: /health",
             f"    envVars:",
-            f"      - key: PYTHON_VERSION" if runtime == "python" else f"      - key: NODE_ENV",
-            f'        value: "3.11.6"' if runtime == "python" else f'        value: production',
         ]
+        if be["runtime"] == "python":
+            svc.extend([
+                f"      - key: PYTHON_VERSION",
+                f'        value: "3.11.6"',
+            ])
         if config.database == "postgresql":
             svc.extend([
                 f"      - key: DATABASE_URL",
@@ -302,16 +324,18 @@ def generate_render_yaml(config: ProjectConfig, target: Path):
             ])
         services.append("\n".join(svc))
 
-    # Frontend service
+    # Frontend service (runs from frontend/ directory)
     if config.frontend_framework != "none":
+        fe = RENDER_FRONTEND.get(config.frontend_framework, RENDER_FRONTEND["nextjs"])
         svc = [
             f"  - type: web",
             f"    name: {config.project_slug}-frontend",
             f"    runtime: node",
+            f"    rootDir: frontend",
             f"    plan: starter",
             f"    region: oregon",
-            f"    buildCommand: npm install",
-            f"    startCommand: {config.dev_server_command}",
+            f"    buildCommand: {fe['buildCommand']}",
+            f"    startCommand: {fe['startCommand']}",
             f"    healthCheckPath: /health",
             f"    envVars:",
             f"      - key: NODE_ENV",
@@ -326,12 +350,12 @@ def generate_render_yaml(config: ProjectConfig, target: Path):
         lines.append("\n\n".join(services))
         lines.append("")
 
-    # Database
+    # Database (Basic-256mb — $6/month, persistent, no expiry)
     if config.database == "postgresql":
         lines.extend([
             "databases:",
             f"  - name: {config.project_slug}-db",
-            f"    plan: starter",
+            f"    plan: basic-256mb",
             f"    region: oregon",
             f"    postgresMajorVersion: 16",
             "",
@@ -429,7 +453,7 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
 
     # ── 6. .gitignore ──
     gitignore_path = target / ".gitignore"
-    lines_to_add = ["session/", ".claude/settings.local.json"]
+    lines_to_add = ["session/", ".claude/settings.local.json", ".env", ".env.local", "*.env.local"]
     if gitignore_path.exists():
         existing = gitignore_path.read_text(encoding="utf-8")
         additions = [l for l in lines_to_add if l not in existing]

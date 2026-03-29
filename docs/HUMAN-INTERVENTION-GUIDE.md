@@ -79,7 +79,25 @@ You can check for blockers at any time with `/status blockers`.
 
 ---
 
-### 5. DNS and Custom Domains
+### 5. Push to Deploy (Code Review Checkpoint)
+
+**When:** After backend or frontend code is written, the infra-worker commits the code and needs you to push it to trigger Render's auto-deploy.
+
+**Symptom:** Blocker with type `external-action`, message like "Code committed. Please run `git push origin main` to deploy."
+
+**What to do:**
+1. Review the changes if desired: `git log --oneline -5` and `git diff HEAD~1`
+2. Push: `git push origin main`
+3. Render auto-deploys both services on commit
+4. Reply to the orchestrator that you've pushed
+
+**This is intentional.** Pushing requires authentication and is a natural checkpoint for you to review what was built before it goes live. The orchestrator will not push on its own.
+
+**Frequency:** Typically twice per orchestration — once after backend is complete, once after frontend is complete.
+
+---
+
+### 6. DNS and Custom Domains
 
 **When:** A deployment task includes setting up a custom domain.
 
@@ -95,7 +113,7 @@ You can check for blockers at any time with `/status blockers`.
 
 ---
 
-### 6. Unclear Requirements
+### 7. Unclear Requirements
 
 **When:** A worker encounters ambiguity in the spec that prevents implementation.
 
@@ -110,7 +128,7 @@ You can check for blockers at any time with `/status blockers`.
 
 ---
 
-### 7. Architecture Decisions
+### 8. Architecture Decisions
 
 **When:** A worker faces a significant technical choice that could go multiple ways.
 
@@ -125,7 +143,7 @@ You can check for blockers at any time with `/status blockers`.
 
 ---
 
-### 8. Worker Failures (Max Attempts Reached)
+### 9. Worker Failures (Max Attempts Reached)
 
 **When:** A worker has failed 3 times on the same task.
 
@@ -141,7 +159,7 @@ You can check for blockers at any time with `/status blockers`.
 
 ---
 
-### 9. Design Direction Approval
+### 10. Design Direction Approval
 
 **When:** A frontend worker runs the bold-design pre-design exploration for the first time.
 
@@ -167,11 +185,19 @@ To get the smoothest autonomous run:
 
 ### Render Pre-Flight Checklist
 
+Do this **once** before your first `/orchestrate`:
+
 - [ ] `render` CLI installed and `render workspace current -o json` works
 - [ ] `render.yaml` exists in repo root (generated during onboarding)
-- [ ] Git repo pushed to GitHub/GitLab (Render deploys from git)
+- [ ] Git repo created, committed, and pushed to GitHub/GitLab
+- [ ] **Blueprint Instance created**: Render Dashboard → Blueprints → "New Blueprint Instance" → select your repo
+  - Render reads `render.yaml` and creates all services + database
+  - First deploy may fail (no real code yet — this is expected and fine)
+  - Database starts provisioning automatically
 - [ ] Workspace selected if you have multiple: `render workspace set`
-- [ ] API keys and secrets ready to set as env vars after first deploy
+- [ ] API keys and secrets set as env vars in Render Dashboard (for any services that need them)
+
+After this setup, the orchestrator can deploy code to Render autonomously via `render deploys create`.
 
 2. **Write detailed specs:**
    - The more specific your acceptance criteria, the fewer `unclear-requirement` blockers
@@ -190,9 +216,10 @@ To get the smoothest autonomous run:
 | Intervention | Type | Typical Resolution Time | Can Prevent? |
 |-------------|------|------------------------|-------------|
 | Platform auth | external-action | 2 minutes | Yes — login beforehand |
-| Database provisioning | external-action | 5 minutes | Yes — provision beforehand |
+| Database provisioning | external-action | 5 minutes | Yes — Blueprint Instance beforehand |
 | Env vars / secrets | needs-human-decision | 5-30 minutes | Partially — have keys ready |
 | Git repo setup | external-action | 5 minutes | Yes — set up beforehand |
+| **Push to deploy** | **external-action** | **1-2 minutes** | **No — intentional checkpoint** |
 | DNS / domains | external-action | Minutes to hours | No — inherently async |
 | Unclear requirements | unclear-requirement | 1-5 minutes | Yes — write detailed specs |
 | Architecture decisions | needs-human-decision | 2-10 minutes | Partially — constrain in spec |

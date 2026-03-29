@@ -2,28 +2,50 @@
 
 Phase-aware examples for different types of development goals.
 
+## Phase Ordering Principle: Infrastructure First
+
+When a deployment platform is configured (CLAUDE.md has a `deploy_platform`), **always provision infrastructure first**. This gives workers real databases and live API endpoints from the start — no mocks, no local stand-ins, no environment drift.
+
+```
+infra → backend (deploy after) → frontend (local dev, hits deployed API) → frontend deploy
+```
+
+The frontend dev server runs locally for fast visual iteration but proxies API calls to the deployed backend. This means every screenshot shows real data from a real API backed by a real database.
+
 ## Pattern: Full-Stack Feature
 
 Goal: "Add user registration with API and UI"
 
 ### Phases
 ```
-phase-1: Data Layer (FR-1, FR-3)
-    p1-task-1: User model + migration           → backend-worker
-    p1-task-2: Database seed/fixtures            → backend-worker
-    p1-task-3: Model unit tests                  → backend-worker
+phase-1: Infrastructure Setup (NFR-1)
+    p1-task-1: Verify Render services exist, pull DB credentials,
+               create backend/.env with DATABASE_URL, record service URLs → infra-worker
+    NOTE: Human should have created Blueprint Instance before orchestration.
+          If services don't exist, raise a blocker for the human.
 
-phase-2: API Layer (FR-1, FR-2, FR-3, NFR-1)
-    (decomposed after phase-1 completes)
+phase-2: Backend Development (FR-1, FR-2, FR-3)
+    p2-task-1: Database models + migrations (run against Render DB via .env) → backend-worker
+    p2-task-2: API endpoints (registration, login), tested against Render DB → backend-worker (depends on p2-task-1)
+    p2-task-3: Commit code + raise blocker for human to push.
+               After push: Render auto-deploys. Verify backend health. → infra-worker (depends on p2-task-2)
 
-phase-3: Frontend (FR-1, FR-2, FR-3, NFR-2)
-    (decomposed after phase-2 completes)
-
-phase-4: Integration & Deploy (NFR-1, NFR-2)
-    (decomposed after phase-3 completes)
+phase-3: Frontend Development (FR-1, FR-2, NFR-2)
+    p3-task-1: Registration UI + dashboard (local dev, wired to deployed backend API) → frontend-worker
+    p3-task-2: Polish + local visual verification → frontend-worker (depends on p3-task-1)
+    p3-task-3: Commit code + raise blocker for human to push.
+               After push: Render auto-deploys frontend. → infra-worker (depends on p3-task-2)
+    p3-task-4: Post-deploy verification — screenshot deployed frontend URL,
+               verify against requirements + design direction → frontend-worker (depends on p3-task-3)
 ```
 
-Key: Frontend depends on API. API depends on models. Each phase decomposes just-in-time.
+Key points:
+- Infrastructure verified first. Infra-worker creates backend/.env with DB credentials.
+- Backend tests run against the REAL Render database (no mocks, no SQLite).
+- Deploy tasks commit code then raise a BLOCKER for the human to `git push`. This is the natural pause point for code review and authentication. Render auto-deploys on push.
+- Frontend development uses local dev server for visual iteration, wired to deployed backend API.
+- Post-deploy verification screenshots the LIVE deployed URL (not localhost).
+- Each phase decomposes just-in-time.
 
 ## Pattern: Frontend Only
 
@@ -65,8 +87,9 @@ Goal: "Add a PostgreSQL database and deploy the backend API"
 ### Phases
 ```
 phase-1: Infrastructure (NFR-1, NFR-2)
-    p1-task-1: Create deployment blueprint    → infra-worker
-    p1-task-2: Deploy and verify              → infra-worker (depends on p1-task-1)
+    p1-task-1: Verify/update render.yaml blueprint  → infra-worker
+    p1-task-2: Deploy and verify health endpoints    → infra-worker (depends on p1-task-1)
+    p1-task-3: Run database migrations               → infra-worker (depends on p1-task-2)
 ```
 
 ## Pattern: Multi-Service

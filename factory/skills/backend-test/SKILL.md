@@ -19,7 +19,15 @@ You are implementing backend functionality with mandatory test verification. You
    - Existing patterns (how routes, models, tests are organized)
    - Test framework and runner (pytest, jest, etc.)
    - Database setup if any
-2. Understand the requirement: `$ARGUMENTS`
+2. Check for database credentials:
+   - Read `backend/.env` (or project root `.env`) for `DATABASE_URL`
+   - If `.env` exists with a remote database URL, use it — tests should run against the real database
+   - If no `.env` exists: check if you can pull credentials via `render` CLI (if available):
+     ```bash
+     render postgres list -o json 2>/dev/null
+     ```
+   - If credentials are unavailable, raise a blocker for the human to provide the DATABASE_URL
+3. Understand the requirement: `$ARGUMENTS`
 
 ### Step 2: Plan the Implementation
 
@@ -72,7 +80,7 @@ If all tests pass: you are done. Report what was built and the test results.
 
 - You MUST write at least one test file. No untested code.
 - You MUST run the tests. Writing tests without running them is useless.
-- You MUST NOT mock the database if a real test database is available. Integration tests catch what mocks miss.
+- You MUST NOT mock the database. Use the real database from `backend/.env` (DATABASE_URL). Integration tests against the real database catch what mocks miss. If no database credentials are available, raise a blocker.
 - You MUST NOT modify test assertions to make them pass — fix the implementation instead.
 - If you are in an orchestrated workflow, follow the worker protocol for progress reporting.
 

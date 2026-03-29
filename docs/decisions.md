@@ -16,6 +16,13 @@ Architectural and design decisions for the factory itself. Per-project decisions
 | 8 | Worker resource cap | `--max-budget-usd` per task (default $5) | Replaces `maxTurns` from agent frontmatter; more meaningful limit tied to actual cost |
 | 9 | Completed task file movement | `mv` to `session/tasks/completed/` by orchestrator | At-a-glance status; clean separation of active vs done; workers always write to `session/tasks/` |
 | 10 | Worker execution order | Sequential (one at a time) | Safer for autonomous execution; avoids file conflicts; simpler debugging |
+| 11 | Development workflow | Infrastructure-first; backend deploys before frontend begins | Frontend hits a real API + real DB from the start; no mocks, no local DB, no environment drift |
+| 12 | Backend testing | Tests run against REAL Render PostgreSQL (via .env credentials) | No SQLite substitutes; integration tests catch what mocks miss; infra-worker creates .env in Phase 1 |
+| 13 | Frontend local dev | Local dev for visual iteration; post-deploy verification on live URL | Local = fast visual changes; deployed = real integration test |
+| 14 | Git push | Human pushes (intentional checkpoint) | Code review + auth; Render auto-deploys on commit; orchestrator raises blocker, human pushes |
+| 15 | Human pre-flight | Human creates Render Blueprint Instance before orchestration | One-time manual step; after this, orchestrator deploys via push + auto-deploy |
+| 16 | Render DB plan | Basic-256mb ($6/month) | Persistent, no 30-day expiry like free tier |
+| 17 | Monorepo structure | `frontend/` and `backend/` subdirectories, same repo | Render `rootDir` scopes commands to each directory; both services auto-deploy on push |
 
 ## Open (V2 Candidates)
 

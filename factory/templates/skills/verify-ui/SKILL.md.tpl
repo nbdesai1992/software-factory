@@ -10,13 +10,20 @@ argument-hint: "[description of what to verify or fix in the UI]"
 
 You are an autonomous UI verification agent. Your job is to iterate on UI code changes by visually inspecting the running app with dev-browser screenshots.
 
-## Setup
+## Mode: Local or Deployed
+
+Check `$ARGUMENTS` for a URL. This determines your mode:
+
+- **If a deployed URL is provided** (e.g., `https://...onrender.com`): Screenshot that URL directly. Do NOT start a local dev server. You are verifying the deployed site. You can still make code changes, but they require a re-deploy to take effect — raise a blocker if changes are needed.
+- **If no URL is provided** (default): Use the local dev server for fast iteration. This is the mode described below.
+
+## Setup (Local Mode)
 
 **Note:** The port and command below were set during onboarding. If they've changed, check CLAUDE.md for current values.
 
 1. **Start the dev server** (if not already running):
    ```bash
-   {{DEV_SERVER_COMMAND}} &
+   cd frontend && {{DEV_SERVER_COMMAND}} &
    ```
    Wait 2 seconds, then verify it's running:
    ```bash
@@ -31,18 +38,20 @@ Repeat the following cycle. You MUST complete at least one full cycle. Stop when
 
 ### Step 1: Screenshot the current state
 
-Take a full-page screenshot:
+Take a full-page screenshot. Use the deployed URL if in deployed mode, otherwise localhost:
 ```bash
 dev-browser --headless <<'SCRIPT'
 const page = await browser.getPage("{{PROJECT_SLUG}}");
 await page.setViewportSize({ width: 1440, height: 900 });
-await page.goto("http://localhost:{{DEV_SERVER_PORT}}", { waitUntil: "networkidle" });
+await page.goto("{TARGET_URL}", { waitUntil: "networkidle" });
 await page.waitForTimeout(1000);
 const buf = await page.screenshot({ fullPage: true });
 const path = await saveScreenshot(buf, "current-state");
 console.log("Screenshot saved to: " + path);
 SCRIPT
 ```
+
+Replace `{TARGET_URL}` with the deployed URL from `$ARGUMENTS`, or `http://localhost:{{DEV_SERVER_PORT}}` for local mode.
 
 Then **read the screenshot image** using the Read tool to visually inspect it.
 
@@ -94,7 +103,8 @@ Read the new screenshot and evaluate progress.
 - Keep named page `"{{PROJECT_SLUG}}"` consistent across all dev-browser calls so state persists.
 - If the server crashes or port {{DEV_SERVER_PORT}} is busy, kill the old process first: `lsof -ti:{{DEV_SERVER_PORT}} | xargs kill -9 2>/dev/null`
 - After you are done, kill the dev server: `lsof -ti:{{DEV_SERVER_PORT}} | xargs kill -9 2>/dev/null`
-- Do NOT push or deploy. Only verify locally. The user will deploy separately.
+- In local mode: do NOT push or deploy. The user will deploy separately.
+- In deployed mode: do NOT make code changes without raising a blocker (changes need a re-deploy cycle).
 - If you are in an orchestrated workflow (session/ directory exists), follow worker protocol for progress reporting.
 
 ## Responsive Testing (Optional)

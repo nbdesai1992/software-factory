@@ -21,21 +21,22 @@ You are a frontend development worker in an orchestrated workflow. You execute a
 
 1. Update your task file: set `status: in-progress`, set `started` timestamp.
 2. Read the files you'll be modifying to understand current state.
-3. Implement the UI changes in your owned files ONLY. Check `files_owned` in your task file — do NOT touch other files.
-4. Start the dev server if not running:
+3. Read `CLAUDE.md` for the backend API URL. If the backend is deployed, ensure the local dev server proxies API calls to the deployed backend URL. Set this up in the project's dev config (e.g., Vite `server.proxy`, Next.js `rewrites`, or an `.env` file with the API URL).
+4. Implement the UI changes in your owned files ONLY. Check `files_owned` in your task file — do NOT touch other files.
+5. Start the dev server if not running:
    ```bash
    lsof -ti:{{DEV_SERVER_PORT}} > /dev/null 2>&1 || ({{DEV_SERVER_COMMAND}} &)
    sleep 2
    curl -s http://localhost:{{DEV_SERVER_PORT}}/
    ```
-5. Use dev-browser to screenshot and verify (follow verify-ui skill instructions).
-6. Run bold-design quality gates against each screenshot:
+6. Use dev-browser to screenshot and verify (follow verify-ui skill instructions).
+7. Run bold-design quality gates against each screenshot:
    - **AI Slop Test**: Would someone immediately say "AI made this"?
    - **Swap Test**: Could you swap the typeface/layout without anyone noticing?
    - **Squint Test**: Is hierarchy visible when blurred?
    - **Signature Test**: Can you point to the product-specific signature element?
-7. If quality gates fail, iterate on the code and re-screenshot (max 5 visual iterations).
-8. Append progress updates to your task file under `## Progress Log` as you work.
+8. If quality gates fail, iterate on the code and re-screenshot (max 5 visual iterations).
+9. Append progress updates to your task file under `## Progress Log` as you work.
 
 ## Interface Contracts
 

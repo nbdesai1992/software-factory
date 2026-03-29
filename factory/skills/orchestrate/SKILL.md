@@ -77,8 +77,15 @@ ALWAYS start here. Check if an active session exists.
 |--------|-----------|-------------|
 | UI, layout, styling, pages | frontend | frontend-worker |
 | API, models, business logic | backend | backend-worker |
-| Deployment, infra, databases | infra | infra-worker |
-| Both UI and API | full-stack | backend-worker first, then frontend-worker |
+| Deployment, infra, databases, migrations | infra | infra-worker |
+| Both UI and API | full-stack | infra first, then backend, then frontend |
+
+5. **Infrastructure-first phasing**: If CLAUDE.md has a deploy platform configured:
+   - Phase 1 should ALWAYS be an infra phase that verifies services exist and are reachable
+   - Backend code deploys to the cloud BEFORE frontend work begins (so frontend hits a real API)
+   - Insert deploy tasks (infra-worker) at the end of backend phases
+   - Frontend runs locally during development but proxies API calls to the deployed backend URL (from CLAUDE.md)
+   - Final phase deploys the frontend
 
 ---
 
@@ -89,7 +96,9 @@ Break the spec into phases and tasks. For detailed patterns, read [decomposition
 ### Step 2a: Define Phases
 
 Group requirements by dependency into sequential phases:
-- **Phase boundaries** align with integration points (database → API → frontend → deploy)
+- **Infrastructure first**: If a deploy platform is configured, Phase 1 should verify infrastructure is live (services exist, DB reachable). This enables all subsequent work to run against real cloud infrastructure.
+- **Deploy tasks interspersed**: Insert infra-worker deploy tasks at the end of backend phases (before frontend begins). Frontend workers need a live API to develop against.
+- **Phase boundaries** align with integration points (infra → backend + deploy → frontend + deploy)
 - Each phase should be completable in one orchestrator turn (3-8 tasks)
 - Number phases sequentially: phase-1, phase-2, etc.
 
