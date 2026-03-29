@@ -65,36 +65,56 @@ your-project/
     └── skills/             # 8 skills (orchestration + development + deployment)
 ```
 
-## Quick Start
+## Usage
+
+### Step 1: Clone the factory (once)
 
 ```bash
-# Clone the factory
 git clone https://github.com/nbdesai1992/software-factory.git
-
-# Go to your project
-cd my-project
-
-# Run the onboarding wizard
-python /path/to/software-factory/onboard.py
-
-# Open Claude Code
-claude
-
-# Build
-/spec create "describe what you want"
-/orchestrate
 ```
 
-### One-Time Render Setup
+Keep this somewhere permanent. It's the source — you'll point it at each new project.
 
-Before your first `/orchestrate`:
+### Step 2: Create your project repo
 
-1. `brew install render && render login`
-2. Push your repo to GitHub
-3. Render Dashboard → Blueprints → "New Blueprint Instance" → select repo
-4. Set any API keys as env vars in the Render Dashboard
+```bash
+# Create a new repo on GitHub (or clone an existing shell repo)
+git clone https://github.com/you/my-new-app.git
+cd my-new-app
+```
 
-After that, the orchestrator runs autonomously. You push when it's time to deploy.
+### Step 3: Onboard
+
+```bash
+python /path/to/software-factory/onboard.py
+```
+
+The wizard asks about your stack (Next.js? FastAPI? PostgreSQL? Render?) and installs everything — 8 skills, 3 worker agents, CLAUDE.md, render.yaml, settings.json — directly into your project's `.claude/` directory. Your project is now factory-enabled.
+
+### Step 4: Set up Render (one-time)
+
+```bash
+brew install render && render login
+git add . && git commit -m "factory setup" && git push
+```
+
+Then in the Render Dashboard: **Blueprints → New Blueprint Instance → select your repo.** Render reads `render.yaml` and creates your services + database. First deploy will fail (no code yet) — that's expected.
+
+### Step 5: Build
+
+```bash
+claude   # Open Claude Code in your project
+
+# Inside Claude Code:
+/spec create "build an invoice tracker for freelancers"
+# Answer a few questions about features, scope, constraints...
+/orchestrate
+# The factory takes over: infra → backend → frontend → deploy
+/status
+# Check progress at any time
+```
+
+The orchestrator provisions infrastructure, writes backend code tested against your real Render database, builds the frontend wired to the deployed API, and pauses for you to `git push` when it's time to deploy. That's the full loop — prompt to production.
 
 ## Architecture
 
