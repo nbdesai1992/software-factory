@@ -153,7 +153,7 @@ For the full blueprint schema, service types, and advanced patterns, see [bluepr
 
 ### "Deploy failed"
 1. `render deploys list -o json -r <ID>` — find failed deploy ID
-2. `render logs -r <ID> -o text --type deploy --limit 100` — build/deploy logs
+2. `render logs -r <ID> -o text --type build --limit 100` — build logs
 
 ### "App is slow"
 1. `render logs -r <ID> -o text --limit 50` — check for obvious errors

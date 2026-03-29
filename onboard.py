@@ -366,6 +366,155 @@ def generate_render_yaml(config: ProjectConfig, target: Path):
 
 
 # ──────────────────────────────────────────────
+# App Skeleton Generation
+# ──────────────────────────────────────────────
+
+BACKEND_SKELETONS = {
+    "fastapi": {
+        "main.py": '''from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+''',
+        "requirements.txt": "fastapi\nuvicorn\n",
+    },
+    "express": {
+        "server.js": '''const express = require("express");
+const cors = require("cors");
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+app.get("/health", (req, res) => res.json({ status: "ok" }));
+
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
+''',
+        "package.json": '{\n  "name": "backend",\n  "version": "0.1.0",\n  "private": true,\n  "scripts": { "start": "node server.js" },\n  "dependencies": { "express": "^4.18.0", "cors": "^2.8.5" }\n}\n',
+    },
+    "django": {
+        "requirements.txt": "django\ngunicorn\n",
+    },
+    "flask": {
+        "app.py": '''from flask import Flask, jsonify
+from flask_cors import CORS
+
+app = Flask(__name__)
+CORS(app)
+
+@app.route("/health")
+def health():
+    return jsonify(status="ok")
+''',
+        "requirements.txt": "flask\nflask-cors\ngunicorn\n",
+    },
+}
+
+FRONTEND_SKELETONS = {
+    "nextjs": {
+        "package.json": '''{
+  "name": "frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "^14.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  }
+}
+''',
+        "app/layout.tsx": '''export const metadata = {
+  title: "APP_TITLE",
+  description: "APP_DESC",
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  );
+}
+''',
+        "app/page.tsx": '''export default function Home() {
+  return (
+    <main>
+      <h1>APP_TITLE</h1>
+      <p>Coming soon...</p>
+    </main>
+  );
+}
+''',
+        "app/api/health/route.ts": '''import { NextResponse } from "next/server";
+
+export async function GET() {
+  return NextResponse.json({ status: "ok" });
+}
+''',
+    },
+}
+
+
+def generate_backend_skeleton(config: ProjectConfig, target: Path):
+    """Create minimal backend directory so Render's first build succeeds."""
+    backend_dir = target / "backend"
+    if backend_dir.exists() and any(backend_dir.iterdir()):
+        print(f"    . backend/ (already exists — skipping)")
+        return
+
+    skeleton = BACKEND_SKELETONS.get(config.backend_framework)
+    if not skeleton:
+        print(f"    ! No skeleton for {config.backend_framework}")
+        return
+
+    backend_dir.mkdir(parents=True, exist_ok=True)
+    for filename, content in skeleton.items():
+        filepath = backend_dir / filename
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        filepath.write_text(content, encoding="utf-8")
+    print(f"    + backend/ (skeleton: {config.backend_framework})")
+
+
+def generate_frontend_skeleton(config: ProjectConfig, target: Path):
+    """Create minimal frontend directory so Render's first build succeeds."""
+    frontend_dir = target / "frontend"
+    if frontend_dir.exists() and any(frontend_dir.iterdir()):
+        print(f"    . frontend/ (already exists — skipping)")
+        return
+
+    skeleton = FRONTEND_SKELETONS.get(config.frontend_framework)
+    if not skeleton:
+        print(f"    ! No skeleton for {config.frontend_framework}")
+        return
+
+    frontend_dir.mkdir(parents=True, exist_ok=True)
+    for filename, content in skeleton.items():
+        content = content.replace("APP_TITLE", config.project_name)
+        content = content.replace("APP_DESC", config.project_description)
+        filepath = frontend_dir / filename
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        filepath.write_text(content, encoding="utf-8")
+    print(f"    + frontend/ (skeleton: {config.frontend_framework})")
+
+
+# ──────────────────────────────────────────────
 # Project Setup
 # ──────────────────────────────────────────────
 
@@ -477,7 +626,14 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
         print("\n  Infrastructure:")
         generate_render_yaml(config, target)
 
-    # ── 8. Save config for re-onboarding ──
+    # ── 8. Skeleton app directories (so first Render deploy succeeds) ──
+    print("\n  App skeleton:")
+    if config.backend_framework != "none":
+        generate_backend_skeleton(config, target)
+    if config.frontend_framework != "none":
+        generate_frontend_skeleton(config, target)
+
+    # ── 9. Save config for re-onboarding ──
     config_path = claude_dir / "factory-config.json"
     config_path.write_text(json.dumps(asdict(config), indent=2) + "\n", encoding="utf-8")
     print(f"    + factory-config.json (for re-onboarding)")
