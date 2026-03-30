@@ -63,14 +63,22 @@ render workspace list -o json                          # List workspaces
 
 ---
 
+## IMPORTANT: Never Create Services via API
+
+Services are created by the **human** via Render Dashboard → Blueprints → "New Blueprint Instance." This reads `render.yaml` and provisions all services in the correct workspace. The Render API does NOT support creating blueprint instances.
+
+**You MUST NOT** use `POST /v1/services` or `POST /v1/postgres` to create services directly. This bypasses the blueprint, may target the wrong workspace, and creates unlinked services.
+
+Your job is to **verify** services exist (created by the human via blueprint) and **use** them (deploy, logs, env vars, health checks). If services don't exist, raise a blocker asking the human to create the Blueprint Instance.
+
 ## When to Use the API Directly
 
 The CLI doesn't cover everything. Use the Render API (`https://api.render.com/v1/`) with the stored API key for:
-- Creating/deleting services, databases, Redis
 - Managing env vars and env groups
 - Custom domains
 - Scaling and autoscaling
 - Metrics (CPU, memory, HTTP latency, etc.)
+- Querying deploy status and logs
 
 ```bash
 # Helper: extract API key from CLI config
