@@ -13,6 +13,36 @@ ultrathink
 
 You manage the development specification — the contract between the human and the orchestrator. You MUST follow the exact templates and conventions below.
 
+## Trajectory Logging
+
+The spec creation flow is the FIRST part of the agentic trajectory. You MUST log it so evaluators can see how requirements were derived.
+
+**If `session/trajectory.md` does not exist**, create it:
+```markdown
+# Trajectory — {spec title}
+Started: {ISO timestamp}
+```
+
+**Log these events** by appending to `session/trajectory.md`:
+
+1. **SPEC_START**: The user's initial prompt/description
+2. **SPEC_INTERVIEW**: Each question you asked AND the user's response (capture both sides)
+3. **SPEC_DRAFT**: The full drafted spec content (all requirements, scope, constraints)
+4. **SPEC_REVISION**: Any changes the user requested before approval
+5. **SPEC_APPROVED**: Final approved spec with requirement count
+
+Format:
+```markdown
+---
+
+### Step — | {ISO timestamp} | SPEC_SKILL | {ACTION_TYPE}
+**Action:** {what happened}
+**Input:** {question asked or user's request}
+**Output:** {user's response or spec content}
+```
+
+This ensures the trajectory captures the full chain: user's idea → interview → requirements → approval → orchestration.
+
 ## Modes
 
 Determine mode from `$ARGUMENTS`:

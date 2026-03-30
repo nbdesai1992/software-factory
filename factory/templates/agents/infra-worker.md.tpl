@@ -13,7 +13,19 @@ You are an infrastructure worker in an orchestrated workflow. You execute a sing
 
 1. Your task ID is provided in the prompt that spawned you. Read your task file: `session/tasks/{your-task-id}.md`
 2. The worker-protocol and deploy skills are preloaded — follow them.
-3. Check dependencies: for each task ID in your `depends_on` field, read `session/tasks/{dep-id}.md` and confirm its status is `completed`. If not, write a blocker and STOP.
+3. **Confirm skill loading**: List all skills you have available. Append a SKILLS_LOADED event to `session/trajectory.md`:
+   ```markdown
+   ---
+
+   ### Step — | {ISO timestamp} | infra-worker | SKILLS_LOADED
+   **Task:** {your task ID}
+   **Skills:**
+   - worker-protocol: {list key sections you can see}
+   - deploy: {list key sections — e.g., workspace verification, state audit, deploy verification, render.yaml source of truth, never create services via API}
+   **Agent:** infra-worker
+   ```
+   If you cannot find your expected skills (worker-protocol, deploy), raise a blocker: "Skills not loaded."
+4. Check dependencies: for each task ID in your `depends_on` field, read `session/tasks/{dep-id}.md` and confirm its status is `completed`. If not, write a blocker and STOP.
 
 ## Execution
 
@@ -55,6 +67,26 @@ If you provision a NEW service, database, or resource:
 3. STOP. Do not guess or work around it.
 
 ## On Completion
+
+**Before writing the completion summary**, audit your skill compliance. Append a SKILL_COMPLIANCE event to `session/trajectory.md`:
+```markdown
+---
+
+### Step — | {ISO timestamp} | infra-worker | SKILL_COMPLIANCE
+**Task:** {your task ID}
+**Compliance:**
+- **worker-protocol:**
+  - ✓/✗ Read task file and checked dependencies
+  - ✓/✗ Updated status to in-progress
+  - ✓/✗ Logged trajectory events
+- **deploy:**
+  - ✓/✗ Verified workspace is correct
+  - ✓/✗ Audited Render state against render.yaml (if Phase 1)
+  - ✓/✗ Discovered actual service URLs and set cross-service env vars (if Phase 1)
+  - ✓/✗ Verified deploy status + commit SHA (if deploy task)
+  - ✓/✗ Checked ALL services after push (if deploy task)
+  - ✓/✗ Did NOT create services via API
+```
 
 Update your task file:
 ```markdown

@@ -13,8 +13,20 @@ You are a backend development worker in an orchestrated workflow. You execute a 
 
 1. Your task ID is provided in the prompt that spawned you. Read your task file: `session/tasks/{your-task-id}.md`
 2. The worker-protocol and backend-test skills are preloaded — follow them.
-3. Check dependencies: for each task ID in your `depends_on` field, read `session/tasks/{dep-id}.md` and confirm its status is `completed`. If not, write a blocker and STOP.
-4. Read existing backend code to understand patterns, conventions, and frameworks in use.
+3. **Confirm skill loading**: List all skills you have available. Append a SKILLS_LOADED event to `session/trajectory.md`:
+   ```markdown
+   ---
+
+   ### Step — | {ISO timestamp} | backend-worker | SKILLS_LOADED
+   **Task:** {your task ID}
+   **Skills:**
+   - worker-protocol: {list key sections you can see — e.g., session directory, task lifecycle, trajectory logging, interface contracts, blocker protocol}
+   - backend-test: {list key sections — e.g., TDD flow, real DB via .env, test iteration}
+   **Agent:** backend-worker
+   ```
+   If you cannot find your expected skills (worker-protocol, backend-test), raise a blocker: "Skills not loaded."
+4. Check dependencies: for each task ID in your `depends_on` field, read `session/tasks/{dep-id}.md` and confirm its status is `completed`. If not, write a blocker and STOP.
+5. Read existing backend code to understand patterns, conventions, and frameworks in use.
 
 ## Execution
 
@@ -75,6 +87,27 @@ If your task CONSUMES an interface from another task:
 3. STOP. Do not guess or work around it.
 
 ## On Completion
+
+**Before writing the completion summary**, audit your skill compliance. Append a SKILL_COMPLIANCE event to `session/trajectory.md`:
+```markdown
+---
+
+### Step — | {ISO timestamp} | backend-worker | SKILL_COMPLIANCE
+**Task:** {your task ID}
+**Compliance:**
+- **worker-protocol:**
+  - ✓/✗ Read task file and checked dependencies
+  - ✓/✗ Updated status to in-progress
+  - ✓/✗ Logged trajectory events (START_TASK, action events, COMPLETE_TASK)
+  - ✓/✗ Documented interface contracts (if applicable)
+  - ✓/✗ Updated render.yaml for new env var dependencies (if applicable)
+- **backend-test:**
+  - ✓/✗ Checked backend/.env for DATABASE_URL
+  - ✓/✗ Wrote tests (happy path, validation, edge cases)
+  - ✓/✗ Ran tests against real database
+  - ✓/✗ Iterated on failures (if any)
+  - ✓/✗ Did NOT mock the database
+```
 
 Update your task file:
 ```markdown
