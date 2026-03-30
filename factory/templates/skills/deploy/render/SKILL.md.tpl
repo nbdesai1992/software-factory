@@ -9,6 +9,14 @@ argument-hint: "[logs|deploy|status|create|blueprint|help]"
 
 **CLI constraint:** Always use `-o json` or `-o text` — interactive mode doesn't work in this shell.
 
+## Pre-Flight: Verify Workspace
+
+Before ANY Render operation, verify you're in the correct workspace:
+```bash
+render workspace current -o json
+```
+If the workspace name doesn't match the project's expected workspace, raise a blocker. Do NOT proceed with operations in the wrong workspace — services could be created or modified in the wrong account.
+
 ## Known Services
 
 | Service | ID | Type |

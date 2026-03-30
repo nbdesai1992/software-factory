@@ -23,8 +23,9 @@ You are a frontend development worker in an orchestrated workflow. You execute a
 2. Read the files you'll be modifying to understand current state.
 3. Read `CLAUDE.md` for the backend API URL. If the backend is deployed, ensure the local dev server proxies API calls to the deployed backend URL. Set this up in the project's dev config (e.g., Vite `server.proxy`, Next.js `rewrites`, or an `.env` file with the API URL).
 4. Implement the UI changes in your owned files ONLY. Check `files_owned` in your task file — do NOT touch other files.
-5. Start the dev server if not running:
+5. Install dependencies and start the dev server if not running:
    ```bash
+   cd frontend && npm install --legacy-peer-deps 2>/dev/null
    lsof -ti:{{DEV_SERVER_PORT}} > /dev/null 2>&1 || ({{DEV_SERVER_COMMAND}} &)
    sleep 2
    curl -s http://localhost:{{DEV_SERVER_PORT}}/
