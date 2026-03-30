@@ -23,6 +23,10 @@
 - Backend API URL: https://{{PROJECT_SLUG}}-api.onrender.com
 - Frontend URL: https://{{PROJECT_SLUG}}-frontend.onrender.com
 
+### Environment
+- Shared env group: `{{ENV_GROUP_NAME}}` (linked to all services via render.yaml — contains API keys like ANTHROPIC_API_KEY)
+- Cross-service URLs: `API_URL` on frontend, `FRONTEND_URL` + `CORS_ORIGINS` on backend (auto-configured via render.yaml `fromService`)
+
 ### Development Workflow
 
 Backend and database run on Render. Frontend runs locally during development for fast visual iteration, proxying API calls to the deployed backend. The orchestrator deploys backend code before starting frontend tasks, so the frontend always hits a real API with a real database.

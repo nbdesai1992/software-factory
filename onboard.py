@@ -36,6 +36,7 @@ class ProjectConfig:
     backend_framework: str = "none"
     database: str = "none"
     deploy_platform: str = "none"
+    env_group_name: str = "general_builder_keys"
     design_context: str = ""
     dev_server_port: int = 3000
     dev_server_command: str = "npm run dev"
@@ -52,6 +53,7 @@ class ProjectConfig:
             "{{BACKEND_FRAMEWORK}}": self.backend_framework,
             "{{DATABASE}}": self.database,
             "{{DEPLOY_PLATFORM}}": self.deploy_platform,
+            "{{ENV_GROUP_NAME}}": self.env_group_name,
             "{{DESIGN_CONTEXT}}": self.design_context,
             "{{DEV_SERVER_PORT}}": str(self.dev_server_port),
             "{{DEV_SERVER_COMMAND}}": self.dev_server_command,
@@ -160,6 +162,11 @@ def interview() -> ProjectConfig:
         ["render", "vercel", "fly", "none"],
         default="render",
     )
+
+    if config.deploy_platform != "none":
+        config.env_group_name = ask(
+            "Render shared env group name (for API keys)", "general_builder_keys"
+        )
 
     # ── Dev Server ──
     print("\n  --- Dev Server ---")
@@ -288,7 +295,10 @@ def generate_render_yaml(config: ProjectConfig, target: Path):
     services = []
 
     # Backend service (runs from backend/ directory)
-    if config.backend_framework != "none":
+    has_frontend = config.frontend_framework != "none"
+    has_backend = config.backend_framework != "none"
+
+    if has_backend:
         be = RENDER_BACKEND.get(config.backend_framework, RENDER_BACKEND["express"])
         svc = [
             f"  - type: web",
@@ -314,10 +324,25 @@ def generate_render_yaml(config: ProjectConfig, target: Path):
                 f"          name: {config.project_slug}-db",
                 f"          property: connectionString",
             ])
+        if has_frontend:
+            svc.extend([
+                f"      - key: FRONTEND_URL",
+                f"        fromService:",
+                f"          name: {config.project_slug}-frontend",
+                f"          type: web",
+                f"          property: host",
+                f"      - key: CORS_ORIGINS",
+                f"        fromService:",
+                f"          name: {config.project_slug}-frontend",
+                f"          type: web",
+                f"          property: host",
+            ])
+        if config.env_group_name:
+            svc.append(f"      - fromGroup: {config.env_group_name}")
         services.append("\n".join(svc))
 
     # Frontend service (runs from frontend/ directory)
-    if config.frontend_framework != "none":
+    if has_frontend:
         fe = RENDER_FRONTEND.get(config.frontend_framework, RENDER_FRONTEND["nextjs"])
         svc = [
             f"  - type: web",
@@ -335,6 +360,16 @@ def generate_render_yaml(config: ProjectConfig, target: Path):
             f"      - key: PORT",
             f'        value: "10000"',
         ]
+        if has_backend:
+            svc.extend([
+                f"      - key: API_URL",
+                f"        fromService:",
+                f"          name: {config.project_slug}-api",
+                f"          type: web",
+                f"          property: host",
+            ])
+        if config.env_group_name:
+            svc.append(f"      - fromGroup: {config.env_group_name}")
         services.append("\n".join(svc))
 
     if services:

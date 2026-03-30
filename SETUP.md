@@ -52,7 +52,19 @@ git push
 
 This pushes the render.yaml, skeleton apps, and all configs to GitHub. Render's GitHub integration will detect the render.yaml.
 
-## Step 4: Create Render Blueprint Instance
+## Step 4: Create Env Group + Blueprint Instance
+
+### 4a: Create shared env group (one-time per workspace)
+
+If you don't already have a `general_builder_keys` env group in your Render workspace:
+
+1. Render Dashboard → **Env Groups** → **New Environment Group**
+2. Name it `general_builder_keys` (or whatever you specified during onboarding)
+3. Add your shared API keys (e.g., `ANTHROPIC_API_KEY`)
+
+The `render.yaml` references this group via `fromGroup` — all services will automatically receive these keys when the blueprint is applied.
+
+### 4b: Apply Blueprint Instance
 
 This is a one-time manual step. Render does not support creating Blueprint Instances via API or CLI — it must be done in the Dashboard.
 
@@ -64,8 +76,9 @@ This is a one-time manual step. Render does not support creating Blueprint Insta
    - `{your-project}-api` (backend web service, Python/FastAPI)
    - `{your-project}-frontend` (frontend web service, Node/Next.js)
    - `{your-project}-db` (PostgreSQL database)
+   - Links the shared env group to both services
+   - Sets cross-service URLs (`API_URL` on frontend, `FRONTEND_URL` + `CORS_ORIGINS` on backend)
 6. First deploy will build and deploy the skeleton apps. Both `/health` endpoints should return `{"status": "ok"}`.
-7. Set any API keys or secrets as env vars in the Render Dashboard if needed.
 
 **Important:** The infra-worker will never create services via API. It only verifies that services exist (created by you here) and uses them for deployments, logs, and health checks. If you skip this step, the orchestrator will raise a blocker asking you to do it.
 

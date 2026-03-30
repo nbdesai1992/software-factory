@@ -98,8 +98,8 @@ curl -s -X PUT -H "Authorization: Bearer $RENDER_API_KEY" \
 | GET | `/env-groups/{id}` | Get group details |
 | PATCH | `/env-groups/{id}` | Update group |
 | DELETE | `/env-groups/{id}` | Delete group |
-| POST | `/env-groups/{id}/link-service` | Link to service |
-| DELETE | `/env-groups/{id}/link-service` | Unlink from service |
+| POST | `/env-groups/{id}/services/{serviceId}` | Link to service |
+| DELETE | `/env-groups/{id}/services/{serviceId}` | Unlink from service |
 | GET/PUT/DELETE | `/env-groups/{id}/env-vars/{key}` | Per-variable CRUD |
 
 ---
