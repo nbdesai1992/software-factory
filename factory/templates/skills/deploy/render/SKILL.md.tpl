@@ -160,6 +160,34 @@ For the full blueprint schema, service types, and advanced patterns, see [bluepr
 
 ---
 
+## Post-Push Deploy Verification
+
+After the human pushes code and Render auto-deploys, you MUST verify the deploy succeeded for EVERY service. Do not assume a push means a successful deploy.
+
+### Verification sequence:
+```bash
+# 1. Check latest deploy status for each service
+render deploys list -r <SERVICE_ID> -o json | head -20
+
+# Look for: "status": "live" (success) or "status": "build_failed" / "update_failed" (failure)
+
+# 2. If failed — pull build logs to diagnose
+render logs -r <SERVICE_ID> -o text --type build --limit 50
+
+# 3. If live — verify health endpoint
+curl -s https://<service-url>/health
+```
+
+### If deploy failed:
+1. Read the build logs to identify the error
+2. Raise a blocker with the error details and build log output
+3. Do NOT proceed to the next phase — a failed backend deploy means the frontend will hit stale or broken APIs
+
+### Check ALL services, not just the one you deployed:
+A push to the repo triggers auto-deploy on ALL services (both backend and frontend share the same repo). Verify each service's latest deploy status even if you only changed backend code — the frontend redeploy should also succeed.
+
+---
+
 ## Debugging Playbooks
 
 ### "Site is down"

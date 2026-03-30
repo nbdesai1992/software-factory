@@ -28,13 +28,17 @@ phase-2: Backend Development (FR-1, FR-2, FR-3)
     p2-task-1: Database models + migrations (run against Render DB via .env) → backend-worker
     p2-task-2: API endpoints (registration, login), tested against Render DB → backend-worker (depends on p2-task-1)
     p2-task-3: Commit code + raise blocker for human to push.
-               After push: Render auto-deploys. Verify backend health. → infra-worker (depends on p2-task-2)
+               After push: poll deploy status until live or failed.
+               If failed: pull build logs, raise blocker with error.
+               If live: verify health endpoints. → infra-worker (depends on p2-task-2)
 
 phase-3: Frontend Development (FR-1, FR-2, NFR-2)
     p3-task-1: Registration UI + dashboard (local dev, wired to deployed backend API) → frontend-worker
     p3-task-2: Polish + local visual verification → frontend-worker (depends on p3-task-1)
     p3-task-3: Commit code + raise blocker for human to push.
-               After push: Render auto-deploys frontend. → infra-worker (depends on p3-task-2)
+               After push: poll deploy status until live or failed.
+               If failed: pull build logs, raise blocker with error.
+               If live: verify health endpoints. → infra-worker (depends on p3-task-2)
     p3-task-4: Post-deploy verification — screenshot deployed frontend URL,
                verify against requirements + design direction → frontend-worker (depends on p3-task-3)
 ```
