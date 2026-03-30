@@ -14,9 +14,9 @@ Verify Render is ready:
 render workspace current -o json
 ```
 
-## Step 1: Create a Shell Repo
+## Step 1: Create an Empty Shell Repo
 
-Create a new empty repository on GitHub, then clone it locally:
+Create a new empty repository on GitHub (no README, no .gitignore — completely empty), then clone it locally:
 
 ```bash
 git clone https://github.com/your-username/your-project.git
@@ -33,14 +33,16 @@ python /path/to/software-factory/onboard.py
 
 The wizard asks about your project (name, description, domain, design direction, tech stack, deployment platform) and installs everything:
 
+- `backend/` — Skeleton FastAPI app with `/health` endpoint
+- `frontend/` — Skeleton Next.js app with `/api/health` route
 - `.claude/skills/` — 8 pre-built skills (orchestration, testing, design, deployment, etc.)
 - `.claude/agents/` — 3 worker agent definitions (backend, frontend, infra)
 - `.claude/settings.json` — Permissions for headless worker sessions
 - `CLAUDE.md` — Project context, architecture, deployed URLs
-- `render.yaml` — Render blueprint with your services + database
+- `render.yaml` — Render blueprint defining your services + database
 - `.gitignore` — Updated with `session/`, `.env`
 
-## Step 3: Push the Scaffolding
+## Step 3: Commit and Push
 
 ```bash
 git add .
@@ -48,17 +50,24 @@ git commit -m "factory setup"
 git push
 ```
 
+This pushes the render.yaml, skeleton apps, and all configs to GitHub. Render's GitHub integration will detect the render.yaml.
+
 ## Step 4: Create Render Blueprint Instance
 
+This is a one-time manual step. Render does not support creating Blueprint Instances via API or CLI — it must be done in the Dashboard.
+
 1. Go to [Render Dashboard](https://dashboard.render.com/)
-2. **Blueprints** → **New Blueprint Instance**
-3. Select your GitHub repo
-4. Render reads `render.yaml` and creates:
-   - `{your-project}-api` (backend web service)
-   - `{your-project}-frontend` (frontend web service)
+2. **Select the correct workspace** (not a shared/team workspace unless intended)
+3. **Blueprints** → **New Blueprint Instance**
+4. Select your GitHub repo and the branch you're deploying from (e.g., `develop` or `main`)
+5. Render reads `render.yaml` and creates:
+   - `{your-project}-api` (backend web service, Python/FastAPI)
+   - `{your-project}-frontend` (frontend web service, Node/Next.js)
    - `{your-project}-db` (PostgreSQL database)
-5. First deploy will fail — no application code yet. This is expected.
-6. Set any API keys or secrets as env vars in the Render Dashboard.
+6. First deploy will build and deploy the skeleton apps. Both `/health` endpoints should return `{"status": "ok"}`.
+7. Set any API keys or secrets as env vars in the Render Dashboard if needed.
+
+**Important:** The infra-worker will never create services via API. It only verifies that services exist (created by you here) and uses them for deployments, logs, and health checks. If you skip this step, the orchestrator will raise a blocker asking you to do it.
 
 ## Step 5: Open Claude Code
 
@@ -66,13 +75,15 @@ git push
 claude
 ```
 
+Open Claude Code in your project directory. It will load CLAUDE.md and all the installed skills.
+
 ## Step 6: Create a Spec
 
 ```
 /spec create "describe what you want to build"
 ```
 
-The spec skill will interview you about features, scope, constraints, and success criteria. Review and approve the generated spec.
+The spec skill interviews you about features, scope, constraints, and success criteria. Review and approve the generated spec.
 
 ## Step 7: Orchestrate
 
@@ -82,11 +93,11 @@ The spec skill will interview you about features, scope, constraints, and succes
 
 The orchestrator takes over:
 
-1. **Infrastructure** — Verifies Render services exist, pulls DB credentials
+1. **Infrastructure** — Verifies Render services exist, pulls DB credentials into `backend/.env`
 2. **Backend** — Writes models, migrations, API endpoints, tests against real Render DB
-3. **Deploy backend** — Commits code, asks you to `git push` (your review checkpoint)
+3. **Deploy backend** — Commits code, asks you to `git push` (your review checkpoint). Render auto-deploys.
 4. **Frontend** — Writes UI with domain-specific design, wired to deployed backend API
-5. **Deploy frontend** — Commits code, asks you to `git push`
+5. **Deploy frontend** — Commits code, asks you to `git push`. Render auto-deploys.
 6. **Verify** — Screenshots the deployed site, checks against requirements
 
 ## Step 8: Check Progress
@@ -106,7 +117,7 @@ The system runs autonomously but pauses for you at these points:
 
 | When | What to do |
 |------|-----------|
-| **Push to deploy** | Review the diff, run `git push origin main` |
+| **Push to deploy** | Review the diff, run `git push` (Render auto-deploys on commit) |
 | **Missing env var** | Set it in Render Dashboard, reply to the orchestrator |
 | **Unclear requirement** | Answer the question, orchestrator records your decision |
 | **Design review** (optional) | Check `session/design-direction.md` after first frontend task |
@@ -118,3 +129,7 @@ To change your project's configuration later:
 ```bash
 python /path/to/software-factory/onboard.py --reconfigure
 ```
+
+## Diagnostic: Trajectory
+
+After each orchestration run, `session/trajectory.md` contains the full agentic trajectory — every discrete step taken by the orchestrator and workers. Use this for evaluating harness behavior and diagnosing issues.
