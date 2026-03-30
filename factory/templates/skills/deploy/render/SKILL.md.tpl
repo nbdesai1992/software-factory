@@ -17,6 +17,65 @@ render workspace current -o json
 ```
 If the workspace name doesn't match the project's expected workspace, raise a blocker. Do NOT proceed with operations in the wrong workspace — services could be created or modified in the wrong account.
 
+## render.yaml Is the Source of Truth
+
+`render.yaml` MUST be the **complete, authoritative declaration** of all service configuration:
+- Every env var (hardcoded, fromDatabase, fromGroup, or sync: false)
+- Every env group link (fromGroup)
+- Every runtime setting (buildCommand, startCommand, healthCheckPath, plan)
+
+**If you add a new env var dependency** (e.g., adding an API integration that needs a key):
+1. Determine: does this key belong in the shared env group (fromGroup) or as a service-level var?
+2. Update render.yaml accordingly — either add the var or confirm it exists in the linked env group
+3. If it's a secret, use `sync: false` (value set in Dashboard, not in code)
+
+**Never make manual Dashboard changes without updating render.yaml.** Drift between render.yaml and actual Render state causes silent failures.
+
+## Render State Audit (Phase 1 of every orchestration run)
+
+Before any code work begins, audit the live Render state against render.yaml:
+
+```bash
+RENDER_API_KEY=$(grep 'key:' ~/.render/cli.yaml | head -1 | awk '{print $2}')
+
+# 1. Pull actual env vars for each service
+curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+  "https://api.render.com/v1/services/<SERVICE_ID>/env-vars"
+
+# 2. Pull linked env groups
+curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+  "https://api.render.com/v1/env-groups/<GROUP_ID>"
+
+# 3. Pull service details (runtime, build/start commands)
+curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+  "https://api.render.com/v1/services/<SERVICE_ID>"
+```
+
+**Compare against render.yaml. Flag as blockers:**
+- Missing env vars (declared in render.yaml but not on Render)
+- Extra env vars (on Render but not in render.yaml — potential drift)
+- Wrong values (version mismatch, incorrect URLs)
+- Missing env group links
+- Runtime/build/start command mismatch
+
+**Discover and set actual service URLs:**
+Render adds random suffixes to URLs (e.g., `{slug}-api-z0l3.onrender.com`). The infra-worker MUST:
+1. Get actual URLs from `render services list -o json` (look for the `url` field in serviceDetails)
+2. Set cross-service env vars via API with full `https://` URLs:
+   ```bash
+   # Set API_URL on frontend
+   curl -s -H "Authorization: Bearer $RENDER_API_KEY" -H "Content-Type: application/json" \
+     -X PUT "https://api.render.com/v1/services/<FRONTEND_ID>/env-vars" \
+     -d '[{"key": "API_URL", "value": "https://<actual-backend-url>"}]'
+
+   # Set FRONTEND_URL + CORS_ORIGINS on backend
+   curl -s -H "Authorization: Bearer $RENDER_API_KEY" -H "Content-Type: application/json" \
+     -X PUT "https://api.render.com/v1/services/<BACKEND_ID>/env-vars" \
+     -d '[{"key": "FRONTEND_URL", "value": "https://<actual-frontend-url>"}, {"key": "CORS_ORIGINS", "value": "https://<actual-frontend-url>"}]'
+   ```
+3. Record the actual URLs in the task file's Interface Contract for downstream workers
+4. Update CLAUDE.md's Deployment section with the real URLs
+
 ## Known Services
 
 | Service | ID | Type |
@@ -162,29 +221,48 @@ For the full blueprint schema, service types, and advanced patterns, see [bluepr
 
 ## Post-Push Deploy Verification
 
-After the human pushes code and Render auto-deploys, you MUST verify the deploy succeeded for EVERY service. Do not assume a push means a successful deploy.
+**CRITICAL: A health endpoint returning 200 does NOT mean the latest code is deployed.** Render uses zero-downtime deploys — when a new deploy fails, the OLD deploy keeps running. The health check hits the old code. You MUST check the deploy status itself.
 
-### Verification sequence:
+### Verification sequence (for EVERY service after a push):
+
 ```bash
-# 1. Check latest deploy status for each service
-render deploys list -r <SERVICE_ID> -o json | head -20
+RENDER_API_KEY=$(grep 'key:' ~/.render/cli.yaml | head -1 | awk '{print $2}')
 
-# Look for: "status": "live" (success) or "status": "build_failed" / "update_failed" (failure)
+# 1. Get the latest deploy — check status AND commit SHA
+curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+  "https://api.render.com/v1/services/<SERVICE_ID>/deploys?limit=1"
 
-# 2. If failed — pull build logs to diagnose
-render logs -r <SERVICE_ID> -o text --type build --limit 50
-
-# 3. If live — verify health endpoint
-curl -s https://<service-url>/health
+# Look at:
+#   "status": must be "live" (not "build_failed", "update_failed", "build_in_progress")
+#   "commit.id": must match the commit you just pushed
 ```
 
-### If deploy failed:
-1. Read the build logs to identify the error
-2. Raise a blocker with the error details and build log output
-3. Do NOT proceed to the next phase — a failed backend deploy means the frontend will hit stale or broken APIs
+### Decision tree:
 
-### Check ALL services, not just the one you deployed:
-A push to the repo triggers auto-deploy on ALL services (both backend and frontend share the same repo). Verify each service's latest deploy status even if you only changed backend code — the frontend redeploy should also succeed.
+| Deploy status | Commit matches? | Action |
+|--------------|----------------|--------|
+| `live` | Yes | Deploy succeeded. Now verify health endpoint as secondary check. |
+| `live` | No | **Stale deploy.** The pushed commit wasn't picked up. Trigger manual deploy or investigate. |
+| `build_failed` | — | Pull build logs: `render logs -r <ID> -o text --type build --limit 50`. Raise blocker with error. |
+| `update_failed` | — | Service crashed on startup. Pull app logs: `render logs -r <ID> -o text --type app --limit 50`. Likely missing env var or import error. Raise blocker. |
+| `build_in_progress` | — | Wait and re-check. Deploy still running. |
+
+### After confirming deploy is live with correct commit:
+```bash
+# Secondary: verify health
+curl -s https://<service-url>/health
+
+# Tertiary: verify a real endpoint works (not just health)
+curl -s https://<service-url>/api/<some-endpoint>
+```
+
+### Check ALL services, not just the one you changed:
+A push triggers auto-deploy on ALL services (monorepo). Verify each service. A frontend build failure during a backend phase is a real problem — it means the next frontend push will also fail.
+
+### If any service failed:
+1. Pull build/app logs to diagnose
+2. Raise a blocker with the full error output
+3. **Do NOT proceed** — downstream work will be built against stale or broken infrastructure
 
 ---
 

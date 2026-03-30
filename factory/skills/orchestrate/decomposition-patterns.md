@@ -19,10 +19,15 @@ Goal: "Add user registration with API and UI"
 ### Phases
 ```
 phase-1: Infrastructure Setup (NFR-1)
-    p1-task-1: Verify Render services exist, pull DB credentials,
-               create backend/.env with DATABASE_URL, record service URLs → infra-worker
-    NOTE: Human should have created Blueprint Instance before orchestration.
-          If services don't exist, raise a blocker for the human.
+    p1-task-1: Full Render state audit + environment setup → infra-worker
+               1. Verify workspace is correct
+               2. Verify services exist (if not, blocker: "Create Blueprint Instance")
+               3. Discover ACTUAL service URLs (Render adds random suffixes)
+               4. Audit env vars: compare live Render state against render.yaml, flag drift
+               5. Set cross-service URLs via API (API_URL, FRONTEND_URL, CORS_ORIGINS) with full https://
+               6. Pull DB credentials, create backend/.env
+               7. Verify DB connectivity
+               8. Record actual URLs in task Interface Contract + update CLAUDE.md
 
 phase-2: Backend Development (FR-1, FR-2, FR-3)
     p2-task-1: Database models + migrations (run against Render DB via .env) → backend-worker

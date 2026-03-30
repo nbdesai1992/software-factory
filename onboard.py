@@ -327,15 +327,9 @@ def generate_render_yaml(config: ProjectConfig, target: Path):
         if has_frontend:
             svc.extend([
                 f"      - key: FRONTEND_URL",
-                f"        fromService:",
-                f"          name: {config.project_slug}-frontend",
-                f"          type: web",
-                f"          property: host",
+                f"        sync: false  # Set by infra-worker with actual Render URL (https://)",
                 f"      - key: CORS_ORIGINS",
-                f"        fromService:",
-                f"          name: {config.project_slug}-frontend",
-                f"          type: web",
-                f"          property: host",
+                f"        sync: false  # Set by infra-worker with actual Render URL (https://)",
             ])
         if config.env_group_name:
             svc.append(f"      - fromGroup: {config.env_group_name}")
@@ -363,10 +357,7 @@ def generate_render_yaml(config: ProjectConfig, target: Path):
         if has_backend:
             svc.extend([
                 f"      - key: API_URL",
-                f"        fromService:",
-                f"          name: {config.project_slug}-api",
-                f"          type: web",
-                f"          property: host",
+                f"        sync: false  # Set by infra-worker with actual Render URL (https://)",
             ])
         if config.env_group_name:
             svc.append(f"      - fromGroup: {config.env_group_name}")

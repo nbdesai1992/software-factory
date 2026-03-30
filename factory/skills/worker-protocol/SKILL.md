@@ -166,6 +166,7 @@ Append a completion summary:
 
 - You MUST only modify files listed in `files_owned` in your task file.
   - **Exception — integration touchpoints:** You MAY make minimal, single-line additions to shared integration files (e.g., adding a router registration to `main.py`, adding a `<script>` tag to `index.html`, adding a CSS `<link>` to `index.html`, writing `session/design-direction.md`) when your task requires it. Document any such changes in your Progress Log. You MUST NOT refactor, restructure, or make substantive changes to files outside your ownership.
+  - **Exception — env var dependencies:** If your code requires a new environment variable (e.g., an API key for a third-party service), you MUST update `render.yaml` to declare it. Determine whether it belongs as a service-level var (`sync: false` for secrets) or is already available via the linked env group. Document the addition in your Progress Log.
 - You MUST NOT modify other task files, phase files, changelog.md, decisions.md, turn-log.json, summary.md, or spec.md.
 - You MUST NOT deploy, push, or make changes visible outside the local repo.
 - You MUST NOT rename or reorganize files outside your ownership.
