@@ -28,6 +28,7 @@ session/
   design-direction.md         # Shared file — read if doing frontend work; the FIRST frontend worker
                               # in a project creates this during bold-design pre-exploration.
                               # Not subject to files_owned restriction.
+  trajectory.md               # Append-only diagnostic trace — append your actions here (see Trajectory Logging)
 ```
 
 ## Task File Format
@@ -66,6 +67,34 @@ Append progress updates to your task file's `## Progress Log` as you hit milesto
 - Next: {what you're doing next}
 - Files modified: {list}
 ```
+
+## Trajectory Logging
+
+You MUST append discrete events to `session/trajectory.md` for each significant action you take. This is a diagnostic trace of the full orchestration run — separate from your Progress Log (which is in your task file). The trajectory enables evaluation and improvement of the harness.
+
+**Format for each event** (append to the file):
+```markdown
+---
+
+### Step — | {ISO timestamp} | {your worker type} | {ACTION_TYPE}
+**Task:** {your task ID}
+**Skill:** {skill name if applicable, or "—"}
+**Action:** {what you did — one sentence}
+**Input:** {what you read or received}
+**Output:** {what resulted}
+**Files:** {files read or written}
+**Reasoning:** {why you took this action}
+```
+
+Leave the step number as "—" (the orchestrator numbers them post-run).
+
+**Action types:** START_TASK, READ_FILE, WRITE_FILE, RUN_COMMAND, SCREENSHOT, ANALYZE_SCREENSHOT, DESIGN_EXPLORATION, RAISE_BLOCKER, RECORD_DECISION, COMPLETE_TASK
+
+**Log at meaningful boundaries, not every micro-action:**
+- Log WRITE_FILE once for "Created Invoice model" — not per-line
+- Log RUN_COMMAND once for "Ran pytest, 5/5 passed" — not per-test
+- Log DESIGN_EXPLORATION once for the full bold-design pre-exploration output
+- Always log START_TASK and COMPLETE_TASK
 
 ## Interface Contracts
 

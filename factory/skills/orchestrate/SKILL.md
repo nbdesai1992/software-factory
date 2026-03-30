@@ -13,6 +13,37 @@ ultrathink
 
 You are the orchestrator. You receive a development spec and autonomously decompose, execute, and verify it using worker agents. You MUST follow this protocol exactly. You MUST NOT do implementation work yourself — your job is to plan, spawn, monitor, and synthesize.
 
+## Trajectory Logging
+
+You MUST maintain `session/trajectory.md` — a full diagnostic trace of every action taken during this orchestration run. This is separate from the turn-log (which is for resume) and the changelog (which is for progress). The trajectory is for evaluating and improving the harness.
+
+**Maintain a step counter** starting at 1. After each significant action, append a trajectory event:
+
+```markdown
+---
+
+### Step {n} | {ISO timestamp} | {ACTOR} | {ACTION_TYPE}
+**Phase:** {current phase number}
+**Task:** {task ID if applicable, or "—"}
+**Action:** {what you did — one sentence}
+**Input:** {what you read or received}
+**Output:** {what resulted}
+**Reasoning:** {why you took this action}
+**Files:** {files read or written, if any}
+**Cost:** {cost_usd if known, or "—"}
+```
+
+**Orchestrator action types:** RESUME_CHECK, ANALYZE, DECOMPOSE, SPAWN_WORKER, MONITOR_RESULT, PHASE_TRANSITION, SURFACE_BLOCKER, RESOLVE_BLOCKER, SYNTHESIZE, CHECKPOINT
+
+**Initialize** the trajectory file at the start of Phase 1 (or on resume, append a RESUME_CHECK event to the existing file):
+```markdown
+# Trajectory — {spec title}
+Started: {timestamp}
+Spec: {spec id} — {N} requirements
+```
+
+Log at meaningful boundaries — every phase action, every worker spawn, every monitor result. Increment the step counter after each event.
+
 ---
 
 ## Phase 0: Resume Check
@@ -86,6 +117,8 @@ ALWAYS start here. Check if an active session exists.
    - Insert deploy tasks (infra-worker) at the end of backend phases
    - Frontend runs locally during development but proxies API calls to the deployed backend URL (from CLAUDE.md)
    - Final phase deploys the frontend
+
+6. **Trajectory:** Append an ANALYZE event to `session/trajectory.md` with: work classification, infrastructure-first decision, requirement count.
 
 ---
 
@@ -215,6 +248,8 @@ Append to `session/changelog.md`:
 
 Mark the current phase `status: in-progress` and set `started` timestamp.
 
+**Trajectory:** Append a DECOMPOSE event with: phase name, task count, task IDs, requirements covered.
+
 ---
 
 ## Phase 3: Spawn Workers
@@ -248,6 +283,8 @@ For each task (in order):
    ```
    Run this as a FOREGROUND Bash command with `timeout: 600000` (10 minutes). Do NOT use `run_in_background`. Wait for the worker to complete before proceeding.
 
+   **Trajectory:** BEFORE spawning, append a SPAWN_WORKER event with: task ID, worker type, prompt text, budget.
+
 4. **Parse Worker Output**: Read `session/.last-worker-output.json`. Extract:
    - `is_error`: If `true`, the worker crashed — treat as failed regardless of task file status.
    - `cost_usd`: Record in the changelog entry for cost tracking.
@@ -255,6 +292,8 @@ For each task (in order):
    - If the exit code is non-zero or the file is not valid JSON, the worker crashed.
 
 5. **Handle Result**: Read the task file (`session/tasks/{task-id}.md`) for the authoritative completion status. Proceed to Phase 4 (Monitor and React).
+
+   **Trajectory:** Append a MONITOR_RESULT event with: task ID, exit code, cost, task status (completed/blocked/failed/crashed), summary from task file.
 
 6. **Continue**: After handling the result, return here and spawn the next task.
 
@@ -352,7 +391,9 @@ After all tasks in the current phase are complete:
    - All {count} tasks completed
    - Requirements fully met: {list of newly completed requirements}
    ```
-3. Check if another phase exists:
+3. **Trajectory:** Append a PHASE_TRANSITION event with: phase name, task count, requirements fully met.
+
+4. Check if another phase exists:
    - **Yes:** Decompose the next phase (go to Phase 2, step 2b — just-in-time decomposition).
    - **No:** All phases done. Go to Phase 5.
 
@@ -388,6 +429,8 @@ Write `session/summary.md`:
 ```
 
 Present the summary to the user.
+
+**Trajectory:** Append a SYNTHESIZE event with: final spec completion percentage, total tasks, total cost across all workers.
 
 ---
 
@@ -435,6 +478,7 @@ This is MANDATORY. It is what enables cross-conversation resume.
 - File ownership is per-phase, not per-spec. The same file CAN be touched by different phases (sequential) but NEVER by different tasks within the same phase.
 - If the goal is simple enough for one task, still use the full protocol. The structure is the value.
 - Execute tasks SEQUENTIALLY via `claude -p` (foreground Bash command, `timeout: 600000`). Do not use `run_in_background`. Wait for each worker to complete before proceeding.
+- You MUST append trajectory events to `session/trajectory.md` after every significant action. See the Trajectory Logging section above.
 
 ## Reference Material
 
