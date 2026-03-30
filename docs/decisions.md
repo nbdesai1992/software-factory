@@ -13,7 +13,7 @@ Architectural and design decisions for the factory itself. Per-project decisions
 | 5 | render.yaml generation | Programmatic in onboard.py | Conditional sections (backend? database? frontend?) need code logic, not string replacement |
 | 6 | Design context | Onboarding question with auto-default from domain | Low friction (Enter for default), high value (populates CLAUDE.md's Design Context for bold-design) |
 | 7 | V1 platform scope | Render only | Vercel/Fly.io adapter structure documented for future |
-| 8 | Worker resource cap | `--max-budget-usd` per task (default $5) | Replaces `maxTurns` from agent frontmatter; more meaningful limit tied to actual cost |
+| 8 | Worker resource cap | `--max-budget-usd 50` per task (safety net) | High enough to never trigger on subscription plans; prevents true runaways only |
 | 9 | Completed task file movement | `mv` to `session/tasks/completed/` by orchestrator | At-a-glance status; clean separation of active vs done; workers always write to `session/tasks/` |
 | 10 | Worker execution order | Sequential (one at a time) | Safer for autonomous execution; avoids file conflicts; simpler debugging |
 | 11 | Development workflow | Infrastructure-first; backend deploys before frontend begins | Frontend hits a real API + real DB from the start; no mocks, no local DB, no environment drift |

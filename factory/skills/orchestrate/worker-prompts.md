@@ -28,7 +28,7 @@ The spawn prompt is MINIMAL. Workers read their full instructions from their tas
 | `--agent` | `"{worker-type}"` | Loads agent definition from `.claude/agents/{worker-type}.md` (system prompt, tools, skills) |
 | `--permission-mode` | `"bypassPermissions"` | Workers are non-interactive and cannot prompt for approval |
 | `--output-format` | `json` | Returns structured JSON with `result`, `is_error`, `cost_usd`, `session_id` |
-| `--max-budget-usd` | `5` (default) | Safety cap per worker invocation. Adjustable per worker type. |
+| `--max-budget-usd` | `50` (default) | Safety cap per worker invocation. High enough to avoid premature termination on subscription plans. |
 
 ## Capturing and Parsing Output
 
@@ -48,7 +48,7 @@ claude -p \
   --agent "frontend-worker" \
   --permission-mode "bypassPermissions" \
   --output-format json \
-  --max-budget-usd 5 \
+  --max-budget-usd 50 \
   "Your task ID is: {task-id}. Read session/tasks/{task-id}.md for your full task definition, file ownership, acceptance criteria, and dependencies. Execute the task following your preloaded skills (worker-protocol, bold-design, verify-ui)." \
   > session/.last-worker-output.json 2>&1
 ```
@@ -59,7 +59,7 @@ claude -p \
   --agent "frontend-worker" \
   --permission-mode "bypassPermissions" \
   --output-format json \
-  --max-budget-usd 5 \
+  --max-budget-usd 50 \
   "Your task ID is: {task-id}. Read session/tasks/{task-id}.md for your full task definition. Design context: {brief direction from design-direction.md if it exists}. Execute following preloaded skills." \
   > session/.last-worker-output.json 2>&1
 ```
@@ -71,7 +71,7 @@ claude -p \
   --agent "backend-worker" \
   --permission-mode "bypassPermissions" \
   --output-format json \
-  --max-budget-usd 5 \
+  --max-budget-usd 50 \
   "Your task ID is: {task-id}. Read session/tasks/{task-id}.md for your full task definition, file ownership, acceptance criteria, and dependencies. Execute the task following your preloaded skills (worker-protocol, backend-test)." \
   > session/.last-worker-output.json 2>&1
 ```
@@ -82,7 +82,7 @@ claude -p \
   --agent "backend-worker" \
   --permission-mode "bypassPermissions" \
   --output-format json \
-  --max-budget-usd 5 \
+  --max-budget-usd 50 \
   "Your task ID is: {task-id}. Read session/tasks/{task-id}.md for your task definition. Also read session/tasks/completed/{dependency-id}.md for the interface contract you must consume. Execute following preloaded skills." \
   > session/.last-worker-output.json 2>&1
 ```
@@ -94,7 +94,7 @@ claude -p \
   --agent "infra-worker" \
   --permission-mode "bypassPermissions" \
   --output-format json \
-  --max-budget-usd 3 \
+  --max-budget-usd 50 \
   "Your task ID is: {task-id}. Read session/tasks/{task-id}.md for your full task definition. Execute the task following your preloaded skills (worker-protocol, deploy)." \
   > session/.last-worker-output.json 2>&1
 ```
@@ -108,7 +108,7 @@ claude -p \
   --agent "{same worker type}" \
   --permission-mode "bypassPermissions" \
   --output-format json \
-  --max-budget-usd 5 \
+  --max-budget-usd 50 \
   "Your task ID is: {task-id}. This is attempt {n}. Read session/tasks/{task-id}.md — it contains the progress log from your previous attempt. The specific issues to fix: {list of issues}. Address ONLY these issues, do not refactor or rewrite." \
   > session/.last-worker-output.json 2>&1
 ```
@@ -122,7 +122,7 @@ claude -p \
   --agent "{worker type}" \
   --permission-mode "bypassPermissions" \
   --output-format json \
-  --max-budget-usd 5 \
+  --max-budget-usd 50 \
   "Your task ID is: {task-id}. This task was previously blocked. The blocker has been resolved: {resolution description}. Decision recorded as D-{n}: {decision summary}. Read session/tasks/{task-id}.md for context, then continue the task with this resolution applied." \
   > session/.last-worker-output.json 2>&1
 ```

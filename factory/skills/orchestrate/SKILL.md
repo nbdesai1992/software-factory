@@ -276,7 +276,7 @@ For each task (in order):
      --agent "{worker type from task file}" \
      --permission-mode "bypassPermissions" \
      --output-format json \
-     --max-budget-usd 5 \
+     --max-budget-usd 50 \
      "Your task ID is: {task-id}. Read session/tasks/{task-id}.md for your full task definition, file ownership, and acceptance criteria. Execute the task following your preloaded skills." \
      > session/.last-worker-output.json 2>&1
    echo "EXIT_CODE=$?"
