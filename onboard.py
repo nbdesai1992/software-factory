@@ -179,14 +179,6 @@ def interview() -> ProjectConfig:
     config.dev_server_port = int(ask("Dev server port", str(default_port)))
     config.dev_server_command = ask("Dev server start command", default_cmd)
 
-    # ── Testing ──
-    print("\n  --- Testing ---")
-    config.testing_policy = ask_choice(
-        "Testing policy:",
-        ["local", "deploy-only"],
-        default="local",
-    )
-
     return config
 
 
