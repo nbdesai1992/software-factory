@@ -37,6 +37,7 @@ class ProjectConfig:
     database: str = "none"
     deploy_platform: str = "none"
     env_group_name: str = "general_builder_keys"
+    auth_provider: str = "none"
     design_context: str = ""
     dev_server_port: int = 3000
     dev_server_command: str = "npm run dev"
@@ -54,11 +55,25 @@ class ProjectConfig:
             "{{DATABASE}}": self.database,
             "{{DEPLOY_PLATFORM}}": self.deploy_platform,
             "{{ENV_GROUP_NAME}}": self.env_group_name,
+            "{{AUTH_PROVIDER}}": self.auth_provider,
+            "{{AUTH_SECTION}}": self._auth_section(),
             "{{DESIGN_CONTEXT}}": self.design_context,
             "{{DEV_SERVER_PORT}}": str(self.dev_server_port),
             "{{DEV_SERVER_COMMAND}}": self.dev_server_command,
             "{{TESTING_POLICY}}": self.testing_policy,
         }
+
+    def _auth_section(self) -> str:
+        if self.auth_provider == "clerk":
+            return """### Authentication — Clerk
+
+**Do NOT implement custom auth.** No password hashing, no JWT generation, no session management, no login/signup forms from scratch. Use Clerk for all authentication.
+
+- **Frontend**: Use `@clerk/nextjs` — `<ClerkProvider>` in layout, `<SignIn>`, `<SignUp>`, `<UserButton>` components, `auth()` for server-side auth checks, `useAuth()` for client-side
+- **Backend**: Use `clerk-backend-api` Python SDK — verify session tokens from the `Authorization: Bearer <token>` header. Protect routes with a dependency that validates the Clerk JWT.
+- **Keys**: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` are declared in render.yaml (`sync: false`) and set in the Render Dashboard by the human.
+- **Auth is infrastructure, not a feature.** It should be set up in the first backend task (Clerk middleware) before any user-specific endpoints are built. Models that need `user_id` depend on auth being in place."""
+        return ""
 
 
 # Smart defaults by framework
@@ -167,6 +182,14 @@ def interview() -> ProjectConfig:
         config.env_group_name = ask(
             "Render shared env group name (for API keys)", "general_builder_keys"
         )
+
+    # ── Authentication ──
+    print("\n  --- Authentication ---")
+    config.auth_provider = ask_choice(
+        "User authentication:",
+        ["clerk", "none"],
+        default="clerk",
+    )
 
     # ── Dev Server ──
     print("\n  --- Dev Server ---")
@@ -331,6 +354,11 @@ def generate_render_yaml(config: ProjectConfig, target: Path):
                 f"      - key: CORS_ORIGINS",
                 f"        sync: false  # Set by infra-worker with actual Render URL (https://)",
             ])
+        if config.auth_provider == "clerk":
+            svc.extend([
+                f"      - key: CLERK_SECRET_KEY",
+                f"        sync: false  # Set in Render Dashboard after creating Clerk app",
+            ])
         if config.env_group_name:
             svc.append(f"      - fromGroup: {config.env_group_name}")
         services.append("\n".join(svc))
@@ -358,6 +386,13 @@ def generate_render_yaml(config: ProjectConfig, target: Path):
             svc.extend([
                 f"      - key: API_URL",
                 f"        sync: false  # Set by infra-worker with actual Render URL (https://)",
+            ])
+        if config.auth_provider == "clerk":
+            svc.extend([
+                f"      - key: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+                f"        sync: false  # Set in Render Dashboard after creating Clerk app",
+                f"      - key: CLERK_SECRET_KEY",
+                f"        sync: false",
             ])
         if config.env_group_name:
             svc.append(f"      - fromGroup: {config.env_group_name}")
@@ -406,7 +441,7 @@ app.add_middleware(
 def health():
     return {"status": "ok"}
 ''',
-        "requirements.txt": "fastapi\nuvicorn\n",
+        "requirements.txt": "fastapi\nuvicorn\nhttpx\n",
     },
     "express": {
         "server.js": '''const express = require("express");
@@ -531,6 +566,15 @@ def generate_backend_skeleton(config: ProjectConfig, target: Path):
         filepath = backend_dir / filename
         filepath.parent.mkdir(parents=True, exist_ok=True)
         filepath.write_text(content, encoding="utf-8")
+
+    # Add Clerk SDK if auth is configured
+    if config.auth_provider == "clerk":
+        req_path = backend_dir / "requirements.txt"
+        existing = req_path.read_text(encoding="utf-8") if req_path.exists() else ""
+        if "clerk" not in existing:
+            with open(req_path, "a", encoding="utf-8") as f:
+                f.write("clerk-backend-api\n")
+
     print(f"    + backend/ (skeleton: {config.backend_framework})")
 
 
@@ -553,6 +597,16 @@ def generate_frontend_skeleton(config: ProjectConfig, target: Path):
         filepath = frontend_dir / filename
         filepath.parent.mkdir(parents=True, exist_ok=True)
         filepath.write_text(content, encoding="utf-8")
+
+    # Add Clerk package if auth is configured
+    if config.auth_provider == "clerk":
+        pkg_path = frontend_dir / "package.json"
+        if pkg_path.exists():
+            import json as _json
+            pkg = _json.loads(pkg_path.read_text(encoding="utf-8"))
+            pkg.setdefault("dependencies", {})["@clerk/nextjs"] = "^5.0.0"
+            pkg_path.write_text(_json.dumps(pkg, indent=2) + "\n", encoding="utf-8")
+
     print(f"    + frontend/ (skeleton: {config.frontend_framework})")
 
 

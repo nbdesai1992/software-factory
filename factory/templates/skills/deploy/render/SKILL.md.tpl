@@ -53,6 +53,7 @@ curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
 
 **Compare against render.yaml. Flag as blockers:**
 - Missing env vars (declared in render.yaml but not on Render)
+- `sync: false` vars with no value set (e.g., `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` empty — human needs to set them in Dashboard)
 - Extra env vars (on Render but not in render.yaml — potential drift)
 - Wrong values (version mismatch, incorrect URLs)
 - Missing env group links

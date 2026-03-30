@@ -23,6 +23,8 @@ Architectural and design decisions for the factory itself. Per-project decisions
 | 15 | Human pre-flight | Human creates Render Blueprint Instance before orchestration | One-time manual step; after this, orchestrator deploys via push + auto-deploy |
 | 16 | Render DB plan | Basic-256mb ($6/month) | Persistent, no 30-day expiry like free tier |
 | 17 | Monorepo structure | `frontend/` and `backend/` subdirectories, same repo | Render `rootDir` scopes commands to each directory; both services auto-deploy on push |
+| 18 | Authentication | Clerk (V1 default), configurable during onboarding | Don't roll your own auth; Clerk handles sign-in/up, JWT, session management |
+| 19 | Auth is infrastructure | Auth middleware set up as first backend task, before user-specific endpoints | Models with user_id depend on auth; endpoints that need auth can't be tested without it |
 
 ## Open (V2 Candidates)
 

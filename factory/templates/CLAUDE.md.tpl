@@ -14,6 +14,7 @@
 - **Backend**: {{BACKEND_FRAMEWORK}}
 - **Database**: {{DATABASE}}
 - **Deployment**: {{DEPLOY_PLATFORM}}
+- **Auth**: {{AUTH_PROVIDER}}
 
 ## Deployment
 
@@ -27,6 +28,8 @@
 - Shared env group: `{{ENV_GROUP_NAME}}` (linked to all services via render.yaml `fromGroup`)
 - Cross-service URLs: `API_URL` on frontend, `FRONTEND_URL` + `CORS_ORIGINS` on backend — declared in render.yaml as `sync: false`, set by infra-worker via Render API with actual `https://` URLs after discovering real service URLs
 - render.yaml is the **complete, authoritative declaration** of all service configuration. Every env var, env group link, and runtime setting must be in render.yaml. If a worker adds a new env var dependency, it must update render.yaml.
+
+{{AUTH_SECTION}}
 
 ### Development Workflow
 

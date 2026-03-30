@@ -30,12 +30,15 @@ phase-1: Infrastructure Setup (NFR-1)
                8. Record actual URLs in task Interface Contract + update CLAUDE.md
 
 phase-2: Backend Development (FR-1, FR-2, FR-3)
-    p2-task-1: Database models + migrations (run against Render DB via .env) → backend-worker
-    p2-task-2: API endpoints (registration, login), tested against Render DB → backend-worker (depends on p2-task-1)
+    p2-task-1: Auth middleware setup (if auth configured in CLAUDE.md) → backend-worker
+               Clerk: verify JWT tokens, create auth dependency for protected routes.
+               This MUST come before any user-specific models or endpoints.
+    p2-task-2: Database models + migrations (run against Render DB via .env) → backend-worker (depends on p2-task-1 if models need user_id)
+    p2-task-3: API endpoints, tested against Render DB → backend-worker (depends on p2-task-2)
     p2-task-3: Commit code + raise blocker for human to push.
                After push: poll deploy status until live or failed.
                If failed: pull build logs, raise blocker with error.
-               If live: verify health endpoints. → infra-worker (depends on p2-task-2)
+               If live: verify health endpoints. → infra-worker (depends on p2-task-3)
 
 phase-3: Frontend Development (FR-1, FR-2, NFR-2)
     p3-task-1: Registration UI + dashboard (local dev, wired to deployed backend API) → frontend-worker

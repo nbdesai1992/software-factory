@@ -76,6 +76,26 @@ If tests fail:
 
 If all tests pass: you are done. Report what was built and the test results.
 
+## Testing with Authentication
+
+If the project uses Clerk (check CLAUDE.md `Auth` field):
+
+- **Auth-protected endpoints still need tests.** Do NOT skip them because they require auth.
+- **Create a test auth helper** that bypasses Clerk verification in test mode. Common pattern for FastAPI:
+  ```python
+  # tests/conftest.py
+  from backend.auth import get_current_user  # your auth dependency
+
+  def override_auth():
+      return {"user_id": "test-user-123", "email": "test@example.com"}
+
+  app.dependency_overrides[get_current_user] = override_auth
+  ```
+- **Test both authenticated and unauthenticated access:**
+  - Protected endpoint without auth → should return 401
+  - Protected endpoint with test auth → should return expected data
+- **Do NOT use real Clerk tokens in tests.** Override the auth dependency.
+
 ## Rules
 
 - You MUST write at least one test file. No untested code.

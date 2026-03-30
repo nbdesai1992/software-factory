@@ -49,14 +49,32 @@ You can check for blockers at any time with `/status blockers`.
 
 ---
 
-### 3. Environment Variables and Secrets
+### 3. Authentication Keys (Clerk)
+
+**When:** The backend or frontend worker needs Clerk keys to set up auth, and they're not yet configured in Render.
+
+**Symptom:** Blocker with type `external-action`, message about missing `CLERK_SECRET_KEY` or `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`. Or the infra-worker's state audit flags them as empty (declared as `sync: false` but no value set).
+
+**What to do:**
+1. Go to [clerk.com](https://clerk.com) → your application (or create one)
+2. Copy the Publishable Key and Secret Key
+3. In Render Dashboard, set on the appropriate services:
+   - Frontend: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`
+   - Backend: `CLERK_SECRET_KEY`
+4. Reply to the orchestrator
+
+**Prevention:** Create your Clerk app and set the keys in Render BEFORE running `/orchestrate`. See SETUP.md Step 4b.
+
+---
+
+### 4. Environment Variables and Secrets
 
 **When:** A worker needs an API key, secret, or connection string that doesn't exist yet.
 
 **Symptom:** Blocker with type `needs-human-decision` or `external-action`, listing the env vars needed.
 
 **What to do:**
-- Create the required accounts (Stripe, SendGrid, Auth0, etc.)
+- Create the required accounts (Stripe, SendGrid, etc.)
 - Provide the keys/secrets when asked
 - The worker will tell you exactly where to set them (platform env vars, `.env` file, etc.)
 
@@ -64,7 +82,7 @@ You can check for blockers at any time with `/status blockers`.
 
 ---
 
-### 4. Git and Repository Setup
+### 5. Git and Repository Setup
 
 **When:** The infra-worker needs to connect a deployment service to your git repo.
 
@@ -79,7 +97,7 @@ You can check for blockers at any time with `/status blockers`.
 
 ---
 
-### 5. Push to Deploy (Code Review Checkpoint)
+### 6. Push to Deploy (Code Review Checkpoint)
 
 **When:** After backend or frontend code is written, the infra-worker commits the code and needs you to push it to trigger Render's auto-deploy.
 
@@ -97,7 +115,7 @@ You can check for blockers at any time with `/status blockers`.
 
 ---
 
-### 6. DNS and Custom Domains
+### 7. DNS and Custom Domains
 
 **When:** A deployment task includes setting up a custom domain.
 
@@ -113,7 +131,7 @@ You can check for blockers at any time with `/status blockers`.
 
 ---
 
-### 7. Unclear Requirements
+### 8. Unclear Requirements
 
 **When:** A worker encounters ambiguity in the spec that prevents implementation.
 
@@ -128,7 +146,7 @@ You can check for blockers at any time with `/status blockers`.
 
 ---
 
-### 8. Architecture Decisions
+### 9. Architecture Decisions
 
 **When:** A worker faces a significant technical choice that could go multiple ways.
 
@@ -143,7 +161,7 @@ You can check for blockers at any time with `/status blockers`.
 
 ---
 
-### 9. Worker Failures (Max Attempts Reached)
+### 10. Worker Failures (Max Attempts Reached)
 
 **When:** A worker has failed 3 times on the same task.
 
@@ -159,7 +177,7 @@ You can check for blockers at any time with `/status blockers`.
 
 ---
 
-### 10. Design Direction Approval
+### 11. Design Direction Approval
 
 **When:** A frontend worker runs the bold-design pre-design exploration for the first time.
 
@@ -217,6 +235,7 @@ After this setup, the orchestrator can deploy code to Render autonomously via `r
 |-------------|------|------------------------|-------------|
 | Platform auth | external-action | 2 minutes | Yes — login beforehand |
 | Database provisioning | external-action | 5 minutes | Yes — Blueprint Instance beforehand |
+| **Clerk auth keys** | **external-action** | **5 minutes** | **Yes — create Clerk app beforehand** |
 | Env vars / secrets | needs-human-decision | 5-30 minutes | Partially — have keys ready |
 | Git repo setup | external-action | 5 minutes | Yes — set up beforehand |
 | **Push to deploy** | **external-action** | **1-2 minutes** | **No — intentional checkpoint** |

@@ -64,7 +64,21 @@ If you don't already have a `general_builder_keys` env group in your Render work
 
 The `render.yaml` references this group via `fromGroup` — all services will automatically receive these keys when the blueprint is applied.
 
-### 4b: Apply Blueprint Instance
+### 4b: Create Clerk application (if auth is configured)
+
+If you chose Clerk during onboarding:
+
+1. Go to [clerk.com](https://clerk.com) → sign in → **Create Application**
+2. Name it after your project
+3. Copy the **Publishable Key** and **Secret Key**
+4. In the Render Dashboard, set these env vars on your services:
+   - Frontend: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` = your publishable key
+   - Frontend: `CLERK_SECRET_KEY` = your secret key
+   - Backend: `CLERK_SECRET_KEY` = your secret key
+
+These are declared as `sync: false` in render.yaml — you set the values manually.
+
+### 4c: Apply Blueprint Instance
 
 This is a one-time manual step. Render does not support creating Blueprint Instances via API or CLI — it must be done in the Dashboard.
 
