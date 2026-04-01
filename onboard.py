@@ -823,15 +823,49 @@ def main():
     else:
         config = interview()
 
-    # Show summary
+    # Show generation summary
     print()
-    print("-" * 40)
-    print("  Configuration Summary:")
-    print("-" * 40)
-    for key, value in asdict(config).items():
-        print(f"    {key}: {value}")
+    print("-" * 50)
+    print("  What will be generated:")
+    print("-" * 50)
+    print(f"  Project:    {config.project_name} ({config.project_slug})")
+    print(f"  Domain:     {config.domain}")
+    print()
 
-    confirm = input("\n  Proceed with setup? [Y/n]: ").strip().lower()
+    def _status(enabled, label, detail=""):
+        mark = "+" if enabled else "-"
+        suffix = f" ({detail})" if detail and enabled else f" (skipped)" if not enabled else ""
+        print(f"    [{mark}] {label}{suffix}")
+
+    _status(True, "CLAUDE.md", "project context, architecture, deployment")
+    _status(config.frontend_framework != "none", "Frontend skeleton",
+            f"{config.frontend_framework}")
+    _status(config.backend_framework != "none", "Backend skeleton",
+            f"{config.backend_framework}")
+    _status(config.deploy_platform != "none", "render.yaml",
+            f"{config.deploy_platform}")
+    _status(config.database != "none", "Database",
+            f"{config.database}")
+    _status(config.auth_provider != "none", "Authentication",
+            f"{config.auth_provider}")
+    print()
+
+    _status(config.frontend_framework != "none", "frontend-worker agent")
+    _status(config.backend_framework != "none", "backend-worker agent")
+    _status(config.deploy_platform != "none", "infra-worker agent")
+    print()
+
+    skills = ["orchestrate", "spec", "status", "worker-protocol", "bold-design"]
+    if config.backend_framework != "none":
+        skills.append("backend-test")
+    if config.frontend_framework != "none":
+        skills.append("verify-ui")
+    if config.deploy_platform != "none":
+        skills.append("deploy")
+    print(f"    Skills: {', '.join(skills)}")
+    print()
+
+    confirm = input("  Proceed with setup? [Y/n]: ").strip().lower()
     if confirm in ("n", "no"):
         print("  Aborted.")
         sys.exit(0)

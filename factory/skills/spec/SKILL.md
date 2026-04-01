@@ -55,26 +55,34 @@ Determine mode from `$ARGUMENTS`:
 
 ## CREATE Mode
 
-### Step 1: Read the Codebase
+### Step 1: Read the Codebase and Infrastructure Context
 
 Understand what exists before asking questions:
 1. Read the project directory structure (`ls` the root, key subdirectories)
-2. Read CLAUDE.md for project context
+2. Read CLAUDE.md for project context. Extract and note:
+   - **Architecture**: frontend framework, backend framework, database, deployment platform
+   - **Auth**: provider (e.g., Clerk) or none
+   - **Design context**: domain, aesthetic direction
+   - **Deployment**: platform, URLs, env group
 3. Read any existing session/spec.md (error if one already exists — tell user to use `update`)
-4. Identify: tech stack, frameworks, existing features, deployment target
+
+These are **infrastructure decisions already made during onboarding.** Do NOT re-ask about them in the interview. The human has already chosen the stack — you focus on PRODUCT decisions.
 
 ### Step 2: Interview the Human
 
-Ask these questions (adapt to context, skip what's obvious from codebase):
+Start by acknowledging what you already know from CLAUDE.md:
+
+> "I see this project uses **{frontend}** + **{backend}** + **{database}**, deployed on **{platform}** with **{auth}** for authentication. I won't ask about infrastructure — let's focus on what this product should DO."
+
+Then ask about **product decisions only**:
 
 1. **"What are you building?"** — Get the high-level goal in their words.
 2. **"Who is it for?"** — User type, use cases.
-3. **"What are the must-have features?"** — These become functional requirements.
+3. **"What are the must-have features?"** — These become functional requirements. Ask about user-facing capabilities, not technical implementation.
 4. **"What should it NOT do?"** — These become out-of-scope items.
-5. **"Any technical constraints?"** — Framework preferences, deployment targets, compatibility.
-6. **"How will you know it's done?"** — Success criteria.
+5. **"How will you know it's done?"** — Success criteria.
 
-Do NOT ask all questions at once. Ask 1-2, wait for response, then follow up. Be conversational, not bureaucratic.
+Do NOT ask about tech stack, deployment targets, framework preferences, or auth provider — those are in CLAUDE.md from onboarding. Do NOT ask all questions at once. Ask 1-2, wait for response, then follow up. Be conversational, not bureaucratic.
 
 ### Step 3: Draft the Spec
 

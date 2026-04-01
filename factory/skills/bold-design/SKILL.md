@@ -124,3 +124,11 @@ Match code complexity to the design vision:
 - **Maximalist design** demands elaborate, layered CSS — multiple gradients, pseudo-elements for texture, complex grid layouts. Write the code the design requires.
 - **Minimalist design** demands surgical precision — every pixel intentional, every spacing value deliberate, every color earned. Less code, more restraint.
 - In both cases, the output MUST feel authored, not generated.
+
+---
+
+## Landing Pages
+
+If your task involves building a landing page or homepage, read `.claude/skills/bold-design/landing-page-patterns.md` before writing any code. It contains structural and visual patterns for consumer SaaS landing pages — hero layout, product preview, features sections, testimonials, CTAs, and anti-patterns to avoid.
+
+Not every project needs a landing page — only read this if your task requires one.
