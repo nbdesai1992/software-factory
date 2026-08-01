@@ -30,10 +30,9 @@ Not every spec needs all four. A frontend-only change is a single phase. A backe
 Each phase should be completable in one orchestrator turn: 3-8 tasks. If a phase would have more than 8 tasks, split it into sub-phases.
 
 ### Rule 3: Just-in-Time Decomposition
-Only decompose the CURRENT phase into detailed tasks. Future phases get:
+Only decompose the CURRENT phase into detailed subtasks. Future phases get one placeholder row in the Task Breakdown:
 - A name and objective
 - The requirements they'll cover
-- An empty tasks section
 
 This prevents stale plans. The world changes as work progresses — schemas evolve, APIs take unexpected shapes. Decomposing later uses the latest information.
 
@@ -62,7 +61,7 @@ p1-task-0-setup: Creates backend/config.py, .env
 p2-task-0-setup: Extends backend/config.py with API settings (inherits from p1-task-0-setup)
 ```
 
-The task file has an `inherits_from` note so the worker reads the prior task's output.
+Note the inheritance in the subtask's Depends On column so the runner passes the prior subtask's interface contracts in the spawn prompt.
 
 ## Example: Full-Stack Feature Mapping
 

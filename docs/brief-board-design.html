@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Software Factory — Brief Board &amp; Goal-Driven Orchestration</title>
+<style>
+  @page { size: letter; margin: 0.6in; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: #1a2330; margin: 0; font-size: 13px; line-height: 1.5;
+  }
+  h1 { font-size: 22px; margin: 0 0 2px; }
+  .subtitle { color: #5a6a7d; margin: 0 0 18px; font-size: 13px; }
+  h2 { font-size: 15px; margin: 22px 0 8px; border-bottom: 2px solid #e3e8ee; padding-bottom: 4px; }
+  code, .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; background: #f2f5f8; padding: 1px 4px; border-radius: 3px; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+  th, td { border: 1px solid #d7dee6; padding: 6px 9px; text-align: left; vertical-align: top; }
+  th { background: #f2f5f8; font-size: 12px; }
+  td { font-size: 12.5px; }
+  .diagram { margin: 10px 0 4px; }
+  .caption { color: #5a6a7d; font-size: 11.5px; margin: 2px 0 0; text-align: center; }
+  ul { margin: 6px 0; padding-left: 20px; }
+  li { margin: 3px 0; }
+  .diagram, table { page-break-inside: avoid; }
+  h2 { page-break-after: avoid; }
+  tr { page-break-inside: avoid; }
+  .kicker { background: #eef4fc; border-left: 3px solid #2f6fb6; padding: 8px 12px; border-radius: 0 4px 4px 0; margin: 10px 0; }
+</style>
+</head>
+<body>
+
+<h1>Software Factory — Brief Board &amp; Goal-Driven Orchestration</h1>
+<p class="subtitle">Design proposal · August 2026 · Kanban-as-folders for multi-brief operation, with <code>/goal</code> as the tenacity harness</p>
+
+<div class="kicker">
+<strong>One idea, three layers.</strong> The <strong>brief</strong> defines what "done" means. <strong>/orchestrate</strong> is the only actor — it does the work and moves the brief between folders. <strong>/goal</strong> does no work: it just keeps restarting orchestrator turns until the board shows the brief has left the active column.
+</div>
+
+<h2>1 · The board: <code>briefs/</code> (committed to git)</h2>
+<p>Folder location is the single source of truth for status. The brief file is the Kanban card and it moves; machine state (<code>session/&lt;brief-id&gt;/</code>: phases, tasks, logs) never moves and stays gitignored. Each brief carries its own requirements, progress log, and blockers — readable at a glance without opening <code>session/</code>.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 900 480" width="100%" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#43536a"/>
+    </marker>
+  </defs>
+
+  <!-- spec create box -->
+  <rect x="40" y="28" width="210" height="52" rx="8" fill="#ffffff" stroke="#43536a" stroke-width="1.4"/>
+  <text x="145" y="49" text-anchor="middle" font-size="13" font-weight="600" font-family="ui-monospace, Menlo, monospace">/spec create "…"</text>
+  <text x="145" y="68" text-anchor="middle" font-size="11" fill="#5a6a7d">interview → brief written</text>
+  <line x1="145" y1="80" x2="145" y2="114" stroke="#43536a" stroke-width="1.4" marker-end="url(#arr)"/>
+
+  <!-- backlog column -->
+  <rect x="40" y="120" width="210" height="130" rx="8" fill="#f2f5f8" stroke="#8a97a8" stroke-width="1.4"/>
+  <text x="145" y="144" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace, Menlo, monospace">1-backlog/</text>
+  <text x="145" y="164" text-anchor="middle" font-size="11" fill="#43536a">scoped briefs, ordered</text>
+  <rect x="65" y="180" width="160" height="24" rx="4" fill="#ffffff" stroke="#b6c0cc"/>
+  <text x="145" y="196" text-anchor="middle" font-size="10.5" font-family="ui-monospace, Menlo, monospace">002-reporting.md</text>
+  <rect x="65" y="212" width="160" height="24" rx="4" fill="#ffffff" stroke="#b6c0cc"/>
+  <text x="145" y="228" text-anchor="middle" font-size="10.5" font-family="ui-monospace, Menlo, monospace">003-billing.md</text>
+
+  <!-- backlog -> active -->
+  <line x1="250" y1="185" x2="334" y2="185" stroke="#43536a" stroke-width="1.4" marker-end="url(#arr)"/>
+  <text x="292" y="172" text-anchor="middle" font-size="10.5" fill="#43536a" font-family="ui-monospace, Menlo, monospace">/orchestrate</text>
+  <text x="292" y="205" text-anchor="middle" font-size="10.5" fill="#5a6a7d">pulls next</text>
+
+  <!-- active column -->
+  <rect x="340" y="120" width="210" height="130" rx="8" fill="#e7f0fb" stroke="#2f6fb6" stroke-width="1.6"/>
+  <text x="445" y="144" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace, Menlo, monospace" fill="#1d4a7a">2-active/</text>
+  <text x="445" y="161" text-anchor="middle" font-size="11" font-weight="600" fill="#1d4a7a">WIP limit = 1</text>
+  <text x="445" y="182" text-anchor="middle" font-size="10.5" fill="#33465e">workers run sequentially;</text>
+  <text x="445" y="197" text-anchor="middle" font-size="10.5" fill="#33465e">brief updated in place:</text>
+  <text x="445" y="212" text-anchor="middle" font-size="10.5" fill="#33465e">checkboxes · progress log · blockers</text>
+  <text x="445" y="234" text-anchor="middle" font-size="10.5" font-family="ui-monospace, Menlo, monospace" fill="#1d4a7a">001-auth.md</text>
+
+  <!-- active -> done -->
+  <line x1="550" y1="170" x2="634" y2="170" stroke="#43536a" stroke-width="1.4" marker-end="url(#arr)"/>
+  <text x="592" y="110" text-anchor="middle" font-size="10.5" fill="#256a3c" font-weight="600">all requirements ✓</text>
+
+  <!-- done column -->
+  <rect x="640" y="120" width="210" height="130" rx="8" fill="#e8f5ec" stroke="#3d8b5a" stroke-width="1.4"/>
+  <text x="745" y="144" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace, Menlo, monospace" fill="#256a3c">4-done/</text>
+  <text x="745" y="166" text-anchor="middle" font-size="10.5" fill="#33465e">Outcome section written into brief;</text>
+  <text x="745" y="181" text-anchor="middle" font-size="10.5" fill="#33465e">non-gating blockers recorded</text>
+  <text x="745" y="196" text-anchor="middle" font-size="10.5" fill="#33465e">as open follow-ups</text>
+
+  <!-- active -> blocked -->
+  <line x1="445" y1="250" x2="445" y2="324" stroke="#43536a" stroke-width="1.4" marker-end="url(#arr)"/>
+  <text x="460" y="283" font-size="10.5" fill="#8a5a1d">requirements remain</text>
+  <text x="460" y="297" font-size="10.5" fill="#8a5a1d">AND zero runnable tasks</text>
+
+  <!-- blocked column -->
+  <rect x="340" y="330" width="210" height="112" rx="8" fill="#fdf3e2" stroke="#c98a2b" stroke-width="1.4"/>
+  <text x="445" y="354" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace, Menlo, monospace" fill="#8a5a1d">3-blocked/</text>
+  <text x="445" y="376" text-anchor="middle" font-size="10.5" fill="#33465e">brief lists each question with</text>
+  <text x="445" y="391" text-anchor="middle" font-size="10.5" fill="#33465e">options and a Resolution:</text>
+  <text x="445" y="406" text-anchor="middle" font-size="10.5" fill="#33465e">placeholder for the human</text>
+
+  <!-- blocked -> active return path -->
+  <path d="M 340 386 L 296 386 L 296 210 L 334 210" fill="none" stroke="#43536a" stroke-width="1.4" marker-end="url(#arr)"/>
+  <text x="286" y="300" text-anchor="end" font-size="10.5" fill="#43536a">human fills Resolution:</text>
+  <text x="286" y="314" text-anchor="end" font-size="10.5" fill="#43536a" font-family="ui-monospace, Menlo, monospace">/orchestrate</text>
+  <text x="286" y="328" text-anchor="end" font-size="10.5" fill="#43536a">resumes the brief</text>
+
+  <!-- session note -->
+  <rect x="640" y="330" width="210" height="112" rx="8" fill="#ffffff" stroke="#8a97a8" stroke-width="1.2" stroke-dasharray="5 4"/>
+  <text x="745" y="354" text-anchor="middle" font-size="12" font-weight="700" font-family="ui-monospace, Menlo, monospace">session/&lt;brief-id&gt;/</text>
+  <text x="745" y="375" text-anchor="middle" font-size="10.5" fill="#33465e">phases · tasks · trajectory · turn-log</text>
+  <text x="745" y="392" text-anchor="middle" font-size="10.5" fill="#5a6a7d">machine state — never moves,</text>
+  <text x="745" y="407" text-anchor="middle" font-size="10.5" fill="#5a6a7d">stays gitignored</text>
+
+  <!-- footer note -->
+  <text x="145" y="390" text-anchor="middle" font-size="11" fill="#43536a" font-weight="600">folder = status</text>
+  <text x="145" y="406" text-anchor="middle" font-size="10.5" fill="#5a6a7d">(single source of truth)</text>
+</svg>
+<p class="caption">Figure 1 — Brief lifecycle across the board. Only <code>/orchestrate</code> moves the card.</p>
+</div>
+
+<h2>2 · Routing rules</h2>
+<p>Route by <strong>requirement state, not blocker existence</strong>:</p>
+<table>
+  <tr><th>End-of-run state</th><th>Routes to</th></tr>
+  <tr><td>All requirements checked</td><td><code>4-done/</code> — even if a non-gating blocker was logged; it is recorded in the brief as an open follow-up, not lost</td></tr>
+  <tr><td>Requirements remain + zero runnable tasks</td><td><code>3-blocked/</code> — Blockers section lists each question with options</td></tr>
+  <tr><td>Human fills <code>Resolution:</code>, reruns <code>/orchestrate</code></td><td>back to <code>2-active/</code> — blocked tasks re-planned with the answer</td></tr>
+</table>
+<p><strong>Park-and-continue:</strong> a human blocker does not stop the run. The orchestrator marks the affected task blocked and keeps executing every task not downstream of the blockage (by dependency, file ownership, or shared requirement). It routes to <code>3-blocked/</code> only when the runnable set is empty. The existing max-attempts escalation funnels repeated failures into the same path — so every run terminates in <code>done</code> or <code>blocked</code>.</p>
+<p><strong>Selection order for <code>/orchestrate</code>:</strong> <code>2-active/</code> (resume) → <code>3-blocked/</code> briefs with new resolutions → next <code>1-backlog/</code> brief.</p>
+
+<h2>3 · Where <code>/goal</code> fits: the ignition switch</h2>
+<p><code>/goal</code> is a built-in Claude Code command, not an actor. After each turn a separate checker model (Haiku) reads the transcript and answers one structural question. "No" auto-starts the next orchestrator turn; "yes" clears the goal and returns control. The condition never needs the requirements in it — done-ness is delegated to the brief, and the board only changes when the orchestrator routes the card.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 900 270" width="100%" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#43536a"/>
+    </marker>
+  </defs>
+
+  <!-- you set goal -->
+  <rect x="30" y="105" width="200" height="70" rx="8" fill="#f2f5f8" stroke="#43536a" stroke-width="1.4"/>
+  <text x="130" y="128" text-anchor="middle" font-size="12.5" font-weight="700">You set the goal once</text>
+  <text x="130" y="146" text-anchor="middle" font-size="10" font-family="ui-monospace, Menlo, monospace">/goal 2-active/ is empty;</text>
+  <text x="130" y="160" text-anchor="middle" font-size="10" font-family="ui-monospace, Menlo, monospace">ls briefs/*/ ; or 15 turns</text>
+  <line x1="230" y1="140" x2="272" y2="140" stroke="#43536a" stroke-width="1.4" marker-end="url(#arr2)"/>
+
+  <!-- orchestrator turn -->
+  <rect x="278" y="105" width="185" height="70" rx="8" fill="#e7f0fb" stroke="#2f6fb6" stroke-width="1.6"/>
+  <text x="370" y="128" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1d4a7a">Orchestrator turn</text>
+  <text x="370" y="146" text-anchor="middle" font-size="10.5" fill="#33465e">reads board · spawns workers</text>
+  <text x="370" y="161" text-anchor="middle" font-size="10.5" fill="#33465e">updates + routes the brief</text>
+  <line x1="463" y1="140" x2="497" y2="140" stroke="#43536a" stroke-width="1.4" marker-end="url(#arr2)"/>
+  <text x="480" y="128" text-anchor="middle" font-size="10" fill="#5a6a7d">turn ends</text>
+
+  <!-- checker diamond -->
+  <polygon points="503,140 590,85 677,140 590,195" fill="#fdf3e2" stroke="#c98a2b" stroke-width="1.4"/>
+  <text x="590" y="127" text-anchor="middle" font-size="11" font-weight="700" fill="#8a5a1d">checker (Haiku)</text>
+  <text x="590" y="143" text-anchor="middle" font-size="10.5" fill="#33465e">is 2-active/</text>
+  <text x="590" y="157" text-anchor="middle" font-size="10.5" fill="#33465e">empty?</text>
+
+  <!-- no loop back -->
+  <path d="M 590 85 L 590 42 L 370 42 L 370 99" fill="none" stroke="#43536a" stroke-width="1.4" marker-end="url(#arr2)"/>
+  <text x="480" y="32" text-anchor="middle" font-size="10.5" fill="#8a5a1d" font-weight="600">no → auto-start next turn (reason passed as guidance)</text>
+
+  <!-- yes exit -->
+  <line x1="677" y1="140" x2="712" y2="140" stroke="#43536a" stroke-width="1.4" marker-end="url(#arr2)"/>
+  <text x="694" y="128" text-anchor="middle" font-size="10.5" fill="#256a3c" font-weight="600">yes</text>
+  <rect x="718" y="105" width="160" height="70" rx="8" fill="#e8f5ec" stroke="#3d8b5a" stroke-width="1.4"/>
+  <text x="798" y="132" text-anchor="middle" font-size="12.5" font-weight="700" fill="#256a3c">Goal clears</text>
+  <text x="798" y="152" text-anchor="middle" font-size="10.5" fill="#33465e">control returns to you</text>
+
+  <!-- footnote -->
+  <text x="454" y="240" text-anchor="middle" font-size="10.5" fill="#5a6a7d">The brief leaves 2-active/ only via routing to 4-done/ or 3-blocked/ — both legitimate terminals, so the loop cannot spin forever. The turn cap is the crash backstop.</text>
+</svg>
+<p class="caption">Figure 2 — The <code>/goal</code> ignition loop. Without it everything still works; you just retype <code>/orchestrate</code> after each turn.</p>
+</div>
+
+<h2>4 · Why this cannot go infinite</h2>
+<ul>
+  <li><strong>"Blocked on human" is a success state of the goal</strong>, not a failure the loop fights. Every non-terminating path (impossible task, repeated failure, unanswerable question) funnels into a blocker via max-attempts, which empties the runnable set, which routes the brief out of <code>2-active/</code> — satisfying the condition.</li>
+  <li><strong>The condition is structural and transcript-provable</strong>: the orchestrator prints <code>ls briefs/*/</code> every turn, so the checker judges one directory listing, not a claim.</li>
+  <li><strong>Anti-gaming constraint</strong> in the goal text: never weaken requirements or check a box without a completed task file.</li>
+  <li><strong>Turn cap</strong> (≈ 2 × phase count + 4) is the belt-and-suspenders backstop for crashes.</li>
+</ul>
+
+<h2>5 · Implementation touchpoints (factory changes)</h2>
+<table>
+  <tr><th>File</th><th>Change</th></tr>
+  <tr><td><code>onboard.py</code></td><td>Scaffold <code>briefs/</code> + README; keep <code>session/</code> gitignored; add "Operating structure" section to <code>CLAUDE.md.tpl</code></td></tr>
+  <tr><td><code>factory/skills/spec/SKILL.md</code></td><td>CREATE writes <code>briefs/1-backlog/NNN-slug.md</code> (drop one-spec-only error); SHOW renders the board; print the ready-made <code>/goal</code> line on approval</td></tr>
+  <tr><td><code>factory/skills/orchestrate/SKILL.md</code></td><td>Phase 0 → brief selection per routing order; paths → <code>session/&lt;brief-id&gt;/</code>; blocker handling → park-and-continue; new routing step moves the brief and writes Outcome; status proof (<code>ls briefs/*/</code>) at every turn checkpoint</td></tr>
+  <tr><td><code>factory/skills/status/SKILL.md</code> + worker templates</td><td>Board rendering; path updates</td></tr>
+</table>
+
+</body>
+</html>

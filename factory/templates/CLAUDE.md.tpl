@@ -35,35 +35,39 @@
 
 Backend and database run on Render. Frontend runs locally during development for fast visual iteration, proxying API calls to the deployed backend. The orchestrator deploys backend code before starting frontend tasks, so the frontend always hits a real API with a real database.
 
-## Orchestration System
+## Operating Structure: The Brief Board
 
-This project uses an autonomous development orchestration system. Key commands:
+This project is developed through goal briefs on a Kanban board at `briefs/` (committed to git). **Folder location IS status** — the brief file is the card and it moves; nothing else does.
 
-- `/spec create` — Create a structured development specification
-- `/spec update` — Modify an existing spec
-- `/spec show` — View spec with completion status
-- `/orchestrate` — Execute the spec: decompose, spawn workers, track progress
-- `/status` — Diagnostic: where things stand relative to the spec
+```
+briefs/
+  1-backlog/    scoped briefs, not started (any number)
+  2-active/     being executed (WIP limit: exactly 1)
+  3-blocked/    NEEDS HUMAN INTERVENTION — distinct terminal, NOT done
+  4-done/       completed — every requirement verified
+```
+
+Key commands:
+
+- `/spec create` — Interview → goal brief in `1-backlog/` + a ready-to-paste `/goal` prompt
+- `/spec update {id}` — Modify a brief's requirements
+- `/orchestrate` — Run the board one turn: select/resume a brief, delegate subtasks, route
+- `/status` — Board diagnostic: where everything stands
+- `/goal <generated prompt>` — Autonomous mode: keeps running turns until the brief reaches a terminal folder
 
 ### How It Works
 
-1. Human creates a spec with `/spec create "description"`
-2. `/orchestrate` reads the spec, decomposes into phases and tasks
-3. Worker agents are spawned as independent `claude -p` sessions (frontend-worker, backend-worker, infra-worker) and execute tasks autonomously
-4. Progress is tracked in `session/` directory (gitignored)
-5. Blockers are surfaced to the human for resolution
-6. `/status` shows progress at any time
-7. Orchestrator resumes across conversations by reading session state from disk
+1. Human creates a brief with `/spec create "description"` and pastes the generated `/goal` prompt (or runs `/orchestrate` manually per turn)
+2. The runner moves the brief to `2-active/`, decomposes it into a Task Breakdown, and delegates each subtask to worker subagents (frontend-worker, backend-worker, infra-worker) via the Task tool
+3. The brief itself carries all state: requirement checkboxes, Task Breakdown statuses, an append-only Progress Log (a Stop hook enforces per-turn updates), and Blockers
+4. Human blockers are parked, not fatal: the runner records the question and keeps executing everything not downstream of it
+5. Terminal routing is by requirement state — all boxes checked → `4-done/`; requirements remain with zero runnable subtasks → `3-blocked/` with a "NEEDS HUMAN INTERVENTION" announcement. Blocked and done are DIFFERENT outcomes; a blocked brief is never presented as complete
+6. To resume a blocked brief: answer its `Resolution:` lines, then run `/orchestrate`
+7. Machine state (trajectory logs for evals) lives in `session/{brief-id}/`, gitignored; `session/design-direction.md` is the shared design direction
 
-### Session Directory
+### Single-Writer Rule
 
-All orchestration state lives in `session/` (ephemeral, gitignored):
-- `spec.md` — The human-approved specification
-- `phases/*.md` — Phase definitions with task tables
-- `tasks/*.md` — In-progress task files with progress logs
-- `tasks/completed/*.md` — Completed task files (moved here on completion)
-- `turn-log.json` — Cross-conversation resume support
-- `changelog.md`, `decisions.md`, `blockers.md` — Audit trail
+Only the main (runner) session edits briefs or moves them between folders. Worker subagents read the brief but never write it — they return structured reports and the runner records the results.
 
 ## Testing Policy
 

@@ -679,26 +679,45 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
         if src.exists():
             render_file(src, agents_dir / f"{agent_name}.md", replacements)
 
-    # ── 4. Settings.json ──
+    # ── 4. Settings.json + hooks (harness-enforced documentation + trajectory) ──
     print("\n  Configuration:")
 
-    # Build permissions list — orchestrator spawns workers via claude -p
-    permissions = ["Bash(dev-browser *)", "Bash(claude -p *)"]
-
-    settings = {"permissions": {"allow": permissions}}
+    settings_tpl = templates / "settings.json.tpl"
     settings_path = claude_dir / "settings.json"
     settings_path.parent.mkdir(parents=True, exist_ok=True)
-    settings_path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
-    print(f"    + settings.json")
+    settings_path.write_text(settings_tpl.read_text(encoding="utf-8"), encoding="utf-8")
+    print(f"    + settings.json (permissions + hooks)")
+
+    hooks_src = templates / "hooks"
+    hooks_dir = claude_dir / "hooks"
+    hooks_dir.mkdir(parents=True, exist_ok=True)
+    for hook_file in sorted(hooks_src.glob("*.sh")):
+        dest = hooks_dir / hook_file.name
+        shutil.copy2(hook_file, dest)
+        dest.chmod(0o755)
+        print(f"    + .claude/hooks/{hook_file.name}")
 
     # ── 5. CLAUDE.md ──
     claude_tpl = templates / "CLAUDE.md.tpl"
     if claude_tpl.exists():
         render_file(claude_tpl, target / "CLAUDE.md", replacements)
 
+    # ── 5b. Brief board (committed Kanban: folder = status) ──
+    print("\n  Brief board:")
+    briefs_dir = target / "briefs"
+    for folder in ["1-backlog", "2-active", "3-blocked", "4-done"]:
+        (briefs_dir / folder).mkdir(parents=True, exist_ok=True)
+        gitkeep = briefs_dir / folder / ".gitkeep"
+        if not gitkeep.exists():
+            gitkeep.write_text("", encoding="utf-8")
+    board_readme_src = templates / "briefs-README.md"
+    if board_readme_src.exists():
+        shutil.copy2(board_readme_src, briefs_dir / "README.md")
+    print(f"    + briefs/ (1-backlog, 2-active, 3-blocked, 4-done + README)")
+
     # ── 6. .gitignore ──
     gitignore_path = target / ".gitignore"
-    lines_to_add = ["session/", ".claude/settings.local.json", ".env", ".env.local", "*.env.local"]
+    lines_to_add = ["session/", ".claude/settings.local.json", ".claude/.turn-marker", ".env", ".env.local", "*.env.local"]
     if gitignore_path.exists():
         existing = gitignore_path.read_text(encoding="utf-8")
         additions = [l for l in lines_to_add if l not in existing]
@@ -746,14 +765,18 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
     1. cd {target}
     2. Open Claude Code
     3. Run:  /spec create "describe what you want to build"
-    4. Review and approve the spec
-    5. Run:  /orchestrate
-    6. Use:  /status  at any time to check progress
+    4. Review and approve the brief — it lands in briefs/1-backlog/
+    5. Paste the generated /goal prompt (autonomous, runs until the brief
+       reaches briefs/4-done/ or briefs/3-blocked/) — or run /orchestrate
+       manually one turn at a time
+    6. Use:  /status  at any time to see the board
+    7. If a brief lands in briefs/3-blocked/ it NEEDS YOU: answer its
+       Resolution: lines, then run /orchestrate to resume
 
   Skills installed:
-    - /spec          Create and manage development specifications
-    - /orchestrate   Decompose and execute the spec with worker agents
-    - /status        Check progress, blockers, and requirements
+    - /spec          Create goal briefs + their /goal prompts
+    - /orchestrate   Board runner: decompose, delegate to subagents, route
+    - /status        Board diagnostic: progress, blockers, requirements
 """)
 
     if config.frontend_framework != "none":
@@ -765,7 +788,7 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
         print(f"    - /deploy        {platform_name} infrastructure management")
 
     print(f"""
-  Workers (spawned via claude -p):
+  Worker subagents (delegated via the Task tool):
     - backend-worker   {'Installed' if config.backend_framework != 'none' else 'Skipped (no backend)'}
     - frontend-worker  {'Installed' if config.frontend_framework != 'none' else 'Skipped (no frontend)'}
     - infra-worker     {'Installed' if config.deploy_platform != 'none' else 'Skipped (no deploy platform)'}

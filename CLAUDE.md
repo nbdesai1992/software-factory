@@ -21,8 +21,10 @@ software-factory/
 │   │   └── status/         # Session diagnostic
 │   └── templates/          # Customizable templates (rendered with project config)
 │       ├── CLAUDE.md.tpl
-│       ├── settings.json.tpl
-│       ├── agents/         # Worker agent definitions
+│       ├── settings.json.tpl   # Permissions + hook wiring
+│       ├── briefs-README.md    # Brief board README (copied to briefs/)
+│       ├── hooks/          # brief-progress-guard.sh, trajectory-log.sh
+│       ├── agents/         # Worker subagent definitions
 │       └── skills/         # Skills that need project context
 │           ├── verify-ui/  # Screenshot verification (needs server config)
 │           └── deploy/     # Platform adapters (render, etc.)
@@ -37,13 +39,13 @@ software-factory/
 2. From your target project directory: `python /path/to/software-factory/onboard.py`
 3. Answer the questions
 4. Open Claude Code in your project
-5. `/spec create "what you want to build"`
-6. `/orchestrate`
+5. `/spec create "what you want to build"` — produces a goal brief + a `/goal` prompt
+6. Paste the `/goal` prompt (autonomous) or run `/orchestrate` one turn at a time
 
 ## Development Guidelines
 
 - Generic skills should contain NO project-specific content
 - Templates use `{{PLACEHOLDER}}` syntax (simple string replacement, no Jinja2)
 - New deploy platform adapters go in `factory/templates/skills/deploy/{platform}/`
-- The orchestrator spawns workers via `claude -p` headless CLI sessions (one at a time, sequential)
-- Workers load skills via the `--agent` flag which reads agent definitions from `.claude/agents/`
+- The runner delegates subtasks to native worker subagents (Task tool, one at a time, sequential); agent definitions live in `.claude/agents/` with skills preloaded via their `skills:` frontmatter
+- Target projects get a committed `briefs/` Kanban board (1-backlog / 2-active / 3-blocked / 4-done — folder location is status) plus hooks in `.claude/hooks/` that enforce per-turn brief documentation and deterministic trajectory logging

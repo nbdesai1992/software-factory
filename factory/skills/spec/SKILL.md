@@ -1,47 +1,27 @@
 ---
 name: spec
-description: Create or update a structured development specification. Use when starting a new feature, project, or major change. Interviews the user and produces a trackable spec.md with requirement IDs, acceptance criteria, and scope boundaries.
+description: Create or update a goal brief — a self-contained development specification card on the brief board. Use when starting a new feature, project, or major change. Interviews the user, produces a trackable brief with requirement IDs and an embedded execution protocol, and outputs a ready-to-paste /goal prompt.
 user-invocable: true
 disable-model-invocation: true
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 argument-hint: "[create|update|show] [description of what to build]"
 ---
 
-# Spec Management
+# Goal Brief Management
 
 ultrathink
 
-You manage the development specification — the contract between the human and the orchestrator. You MUST follow the exact templates and conventions below.
+You manage goal briefs — the contract between the human and the execution system. A brief is a Kanban card on the brief board (`briefs/`): its folder location IS its status, it carries its own requirements, execution protocol, task breakdown, progress log, and blockers, and it is the single source of truth for "done."
 
-## Trajectory Logging
+## The Board
 
-The spec creation flow is the FIRST part of the agentic trajectory. You MUST log it so evaluators can see how requirements were derived.
-
-**If `session/trajectory.md` does not exist**, create it:
-```markdown
-# Trajectory — {spec title}
-Started: {ISO timestamp}
 ```
-
-**Log these events** by appending to `session/trajectory.md`:
-
-1. **SPEC_START**: The user's initial prompt/description
-2. **SPEC_INTERVIEW**: Each question you asked AND the user's response (capture both sides)
-3. **SPEC_DRAFT**: The full drafted spec content (all requirements, scope, constraints)
-4. **SPEC_REVISION**: Any changes the user requested before approval
-5. **SPEC_APPROVED**: Final approved spec with requirement count
-
-Format:
-```markdown
----
-
-### Step — | {ISO timestamp} | SPEC_SKILL | {ACTION_TYPE}
-**Action:** {what happened}
-**Input:** {question asked or user's request}
-**Output:** {user's response or spec content}
+briefs/
+  1-backlog/    # scoped briefs, not started (multiple OK)
+  2-active/     # being executed (WIP limit: exactly 1)
+  3-blocked/    # NEEDS HUMAN INTERVENTION — distinct terminal, NOT done
+  4-done/       # completed — all requirements verified
 ```
-
-This ensures the trajectory captures the full chain: user's idea → interview → requirements → approval → orchestration.
 
 ## Modes
 
@@ -49,7 +29,7 @@ Determine mode from `$ARGUMENTS`:
 - Starts with "create" → CREATE mode
 - Starts with "update" → UPDATE mode
 - Starts with "show" → SHOW mode
-- No mode specified → if session/spec.md exists, SHOW mode. Otherwise, CREATE mode.
+- No mode specified → SHOW mode if any briefs exist, otherwise CREATE mode
 
 ---
 
@@ -64,9 +44,9 @@ Understand what exists before asking questions:
    - **Auth**: provider (e.g., Clerk) or none
    - **Design context**: domain, aesthetic direction
    - **Deployment**: platform, URLs, env group
-3. Read any existing session/spec.md (error if one already exists — tell user to use `update`)
+3. `ls briefs/*/` — see what briefs already exist (multiple briefs are fine; each gets its own ID)
 
-These are **infrastructure decisions already made during onboarding.** Do NOT re-ask about them in the interview. The human has already chosen the stack — you focus on PRODUCT decisions.
+These are **infrastructure decisions already made during onboarding.** Do NOT re-ask about them. Focus the interview on PRODUCT decisions.
 
 ### Step 2: Interview the Human
 
@@ -82,21 +62,28 @@ Then ask about **product decisions only**:
 4. **"What should it NOT do?"** — These become out-of-scope items.
 5. **"How will you know it's done?"** — Success criteria.
 
-Do NOT ask about tech stack, deployment targets, framework preferences, or auth provider — those are in CLAUDE.md from onboarding. Do NOT ask all questions at once. Ask 1-2, wait for response, then follow up. Be conversational, not bureaucratic.
+Ask 1-2 questions at a time, wait for responses, then follow up. Be conversational, not bureaucratic.
 
-### Step 3: Draft the Spec
+**Decomposition-readiness check**: before drafting, ask yourself — could a fresh session break every requirement into subtasks without asking the human anything? If not, ask the follow-up now. Acceptance criteria must be specific and testable (a command output, a visible UI state, a status code — not "works well").
 
-Based on the interview, write the spec using this EXACT template:
+### Step 3: Assign the Brief ID
+
+Find the highest `NNN` prefix across ALL board folders (`ls briefs/*/`), add 1, zero-pad to 3 digits, and append a short slug: `001-user-auth`, `002-reporting`. IDs are permanent and never reused.
+
+### Step 4: Draft the Brief
+
+Write the brief using this EXACT template:
 
 ```markdown
 ---
-id: spec-{unix-timestamp}
+id: {NNN-slug}
 title: "{Title from the goal}"
-status: draft
 created: "{ISO 8601 timestamp}"
 updated: "{ISO 8601 timestamp}"
 completion: 0/{total requirements}
+outcome: pending
 pending_replan: false
+turn_cap: {3 × total requirements + 10}
 ---
 
 # {Title}
@@ -107,7 +94,7 @@ pending_replan: false
 ## Scope
 
 ### In Scope
-- {bullet list of what this spec covers}
+- {bullet list of what this brief covers}
 
 ### Out of Scope
 - {bullet list of explicit exclusions}
@@ -117,8 +104,6 @@ pending_replan: false
 ### Functional Requirements
 - [ ] **FR-1**: {Requirement description}
   - Acceptance: {Specific, testable criteria for "done"}
-  - Phase: _TBD_
-  - Tasks: _TBD_
 - [ ] **FR-2**: {Next requirement}
   - Acceptance: {criteria}
 
@@ -132,118 +117,129 @@ pending_replan: false
 
 ## Success Criteria
 {Holistic definition of "done" — beyond individual requirements}
+
+## Execution Protocol
+
+These rules bind ANY session working this brief. The `/orchestrate` skill is the full runner — invoke it if it is not already loaded.
+
+1. **Single writer.** Only the main (orchestrating) session edits this file or moves it between board folders. Subagents never touch it.
+2. **Decompose before building.** If Task Breakdown below is empty, fill it before any implementation. Every requirement must map to at least one subtask.
+3. **Delegate, don't implement.** Execute each subtask via the matching subagent (frontend-worker / backend-worker / infra-worker). The main session plans, verifies, records, and routes.
+4. **Verify before checking.** A requirement checkbox may only be checked when its acceptance criteria are demonstrably met (test output, screenshot, health check in the transcript). Never weaken, reinterpret, or remove a requirement to make it pass.
+5. **Park blockers, keep moving.** When a subtask hits a human blocker: record it under `## Blockers` (question + options + empty `Resolution:` line), mark the subtask blocked, and continue every subtask NOT downstream of the blockage (by dependency, file ownership, or shared requirement). Max 3 attempts per subtask; the 3rd failure becomes a blocker.
+6. **Document every turn.** Append a Progress Log entry each working turn (a Stop hook enforces this).
+7. **Route on terminal state — two DISTINCT outcomes:**
+   - **COMPLETE**: all requirement checkboxes checked → set `outcome: completed`, write `## Outcome`, `mv` this file to `briefs/4-done/`, announce "BRIEF COMPLETE".
+   - **NEEDS HUMAN**: requirements remain AND zero runnable subtasks → set `outcome: needs-human`, write `## Outcome` listing every open question, `mv` this file to `briefs/3-blocked/`, announce "NEEDS HUMAN INTERVENTION" with the questions. Blocked is NOT done — never present it as completion.
+8. **Prove board state.** End every turn by running: `ls briefs/2-active/ briefs/3-blocked/ briefs/4-done/`
+
+## Task Breakdown
+
+_Filled just-in-time by the runner when this brief becomes active. Current phase in detail; future phases as placeholder rows._
+
+| ID | Phase | Description | Agent | Requirements | Depends On | Files Owned | Status | Attempts |
+|----|-------|-------------|-------|--------------|------------|-------------|--------|----------|
+
+## Progress Log
+
+_Append-only. One entry per working turn: timestamp, what happened, what's next._
+
+## Blockers
+
+_None yet. Each blocker gets: title, type, description, context, options, and an empty `Resolution:` line for the human._
+
+## Outcome
+
+_Written when this brief is routed out of 2-active/. States which terminal (completed / needs-human) and why._
 ```
 
-### Step 4: Present and Confirm
+### Step 5: Present and Confirm
 
-Show the drafted spec to the human. Ask: "Does this capture what you want to build? Any requirements to add, remove, or change?"
+Show the drafted brief to the human. Ask: "Does this capture what you want to build? Any requirements to add, remove, or change?"
 
 Iterate until the human approves.
 
-### Step 5: Write to Disk
+### Step 6: Write to Disk and Output the Goal Prompt
 
-1. Create the session directory:
-   ```bash
-   mkdir -p session/phases session/tasks
-   ```
-2. Write `session/spec.md` with the approved spec
-3. Initialize `session/changelog.md`:
+1. `mkdir -p briefs/1-backlog briefs/2-active briefs/3-blocked briefs/4-done session/{brief-id}`
+2. Write the approved brief to `briefs/1-backlog/{brief-id}.md`
+3. Initialize `session/{brief-id}/trajectory.md`:
    ```markdown
-   # Changelog
-
-   ## [{timestamp}] Spec Created
-   - Title: "{title}"
-   - Requirements: {count} functional, {count} non-functional
-   - Status: draft
+   # Trajectory — {title}
+   Brief: {brief-id} — {N} requirements
+   Started: {ISO timestamp}
    ```
-4. Initialize `session/decisions.md`:
+   Then append SPEC_START (the user's initial description), SPEC_INTERVIEW (questions and answers), and SPEC_APPROVED (requirement count) events in this format:
    ```markdown
-   # Architectural Decisions
+   ---
 
-   (No decisions recorded yet. Decisions are logged here as the orchestrator and workers make architectural choices during execution.)
+   ### Step — | {ISO timestamp} | SPEC_SKILL | {ACTION_TYPE}
+   **Action:** {what happened}
+   **Input:** {question asked or user's request}
+   **Output:** {user's response or spec content}
    ```
-5. Initialize `session/blockers.md`:
-   ```markdown
-   # Blockers
+4. Tell the human, filling in every placeholder:
 
-   (No blockers recorded yet. Workers write here when they hit issues they cannot resolve.)
-   ```
-6. Initialize `session/turn-log.json`:
-   ```json
-   { "turns": [] }
-   ```
+````
+Brief created: briefs/1-backlog/{brief-id}.md
 
-Tell the human: "Spec created. Run `/orchestrate` to begin execution."
+To run it autonomously, paste this goal (it starts working immediately and
+keeps going until the brief reaches a terminal folder):
+
+/goal Brief {brief-id} ("{title}") is in a terminal folder: briefs/4-done/ or briefs/3-blocked/. These are DISTINCT terminals. (A) COMPLETE — the brief is in briefs/4-done/ with every requirement checkbox checked, each verified against its acceptance criteria. (B) NEEDS HUMAN INTERVENTION — the brief is in briefs/3-blocked/, legitimate ONLY after every runnable subtask finished and every blocker is documented with options and an empty "Resolution:" line; the final turn must announce "NEEDS HUMAN INTERVENTION" with the open questions and must NOT claim success. Work the brief per its Execution Protocol section (invoke /orchestrate to start). Never weaken or remove requirements, never check a box without verified acceptance, never route to blocked while runnable work remains. Prove board state every turn by running: ls briefs/2-active/ briefs/3-blocked/ briefs/4-done/. Safety: stop after {turn_cap} turns and report remaining work.
+
+Or run it manually, one turn at a time, with /orchestrate.
+Check progress anytime with /status.
+````
 
 ---
 
 ## UPDATE Mode
 
-### Step 1: Read Current Spec
-Read `session/spec.md`. If it doesn't exist, tell the user to run `/spec create` first.
+### Step 1: Locate the Brief
+`$ARGUMENTS` may name a brief ID; otherwise use the single brief in `2-active/`, or ask which brief to update. Find it via `ls briefs/*/`.
+
+- Brief in `4-done/`: do NOT reopen it. Tell the human that done is terminal — new work gets a new brief (offer to create one referencing the old).
+- Brief in `1-backlog/`, `2-active/`, or `3-blocked/`: proceed.
 
 ### Step 2: Accept Changes
-The human describes what to change. Apply changes following these rules:
+The human describes what to change. Apply these rules:
 
 - **Adding requirements**: Use the next available ID. If FR-1 through FR-5 exist, new one is FR-6. NEVER reuse a removed ID.
-- **Removing requirements**: Delete the requirement line entirely. Do NOT renumber other requirements.
+- **Removing requirements**: Delete the requirement line entirely. Do NOT renumber other requirements. Mark any pending subtasks for it as cancelled in the Task Breakdown.
 - **Modifying requirements**: Update the description/acceptance in place. Keep the same ID.
 - **Changing scope**: Update the In Scope / Out of Scope sections.
 
-### Step 3: Update Frontmatter
-- Set `updated` to current timestamp
-- Set `pending_replan: true` — this signals the orchestrator to re-plan on next run
-- Update `completion` denominator to reflect new total
+### Step 3: Update Frontmatter and Log
+- Set `updated` to current timestamp; update the `completion` denominator; recompute `turn_cap`
+- If the brief is in `2-active/`: set `pending_replan: true` — the runner re-plans on its next turn
+- Append a Progress Log entry: "Brief updated by human: {summary of changes}"
 
-### Step 4: Write and Log
-- Write updated `session/spec.md`
-- Append to `session/changelog.md`:
-  ```markdown
-  ## [{timestamp}] Spec Updated
-  - Added: {list of added requirement IDs}
-  - Removed: {list of removed requirement IDs}
-  - Modified: {list of modified requirement IDs}
-  - pending_replan set to true
-  ```
-
-Tell the human: "Spec updated. The orchestrator will re-plan on next run."
+Tell the human: "Brief updated." If it was in `3-blocked/` and the change resolves the blockage, remind them: "Run /orchestrate to resume it."
 
 ---
 
 ## SHOW Mode
 
-### Step 1: Read Everything
-Read `session/spec.md`. If it doesn't exist, say so.
-
-### Step 2: Display
-Show the spec with a summary header:
+Render the board:
 
 ```
-== SPEC: {title} ==
-Status: {status}
-Completion: {checked}/{total} requirements ({percentage}%)
-Last Updated: {updated}
-
-Functional Requirements:
-  [x] FR-1: {short description}
-  [ ] FR-2: {short description}
-  [ ] FR-3: {short description}
-  [x] FR-4: {short description}
-
-Non-Functional Requirements:
-  [ ] NFR-1: {short description}
-  [x] NFR-2: {short description}
+== BRIEF BOARD ==
+1-backlog:  {count}  {list of "id — title"}
+2-active:   {count}  {id — title, completion, current phase}
+3-blocked:  {count}  {list of "id — title (N open questions)"}  ← NEEDS HUMAN
+4-done:     {count}  {list of "id — title"}
 ```
 
-If `pending_replan: true`, warn: "Spec has been updated since last orchestration. Run /orchestrate to re-plan."
+If a brief ID is given in `$ARGUMENTS`, also show that brief's requirements with checkboxes, task breakdown status, open blockers, and last 3 progress entries. If a blocked brief has open questions, print them in full — that is the human's to-do list.
 
 ---
 
 ## Rules
 
 - Requirement IDs are PERMANENT. Never reuse, never renumber.
-- The spec skill creates the session/ directory. No other skill creates it.
-- The spec skill NEVER writes to phase files, task files, or summary.md. That's the orchestrator's job.
-- Only the orchestrator updates checkboxes and the completion count during execution. The spec skill only updates them via the UPDATE mode when the human explicitly changes requirements.
+- The spec skill writes briefs ONLY to `1-backlog/` (create) or edits them in place (update). It NEVER moves briefs between folders — that is the runner's job.
+- The spec skill NEVER fills the Task Breakdown or checks requirement checkboxes.
+- `3-blocked/` and `4-done/` are different terminals. Never describe a blocked brief as complete.
 
 $ARGUMENTS

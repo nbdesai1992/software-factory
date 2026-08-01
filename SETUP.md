@@ -104,21 +104,23 @@ claude
 
 Open Claude Code in your project directory. It will load CLAUDE.md and all the installed skills.
 
-## Step 6: Create a Spec
+## Step 6: Create a Goal Brief
 
 ```
 /spec create "describe what you want to build"
 ```
 
-The spec skill interviews you about features, scope, constraints, and success criteria. Review and approve the generated spec.
+The spec skill interviews you about features, scope, constraints, and success criteria, then writes a goal brief to `briefs/1-backlog/` and hands you a ready-to-paste `/goal` prompt. Review and approve the brief.
 
-## Step 7: Orchestrate
+## Step 7: Run It
+
+Paste the `/goal` prompt the spec skill gave you — Claude Code keeps running turns until the brief reaches a terminal folder (`briefs/4-done/` complete, or `briefs/3-blocked/` needs your input). Or run one turn at a time:
 
 ```
 /orchestrate
 ```
 
-The orchestrator takes over:
+Either way, the runner takes over:
 
 1. **Infrastructure** — Verifies Render services exist, pulls DB credentials into `backend/.env`
 2. **Backend** — Writes models, migrations, API endpoints, tests against real Render DB
@@ -132,22 +134,24 @@ The orchestrator takes over:
 At any time:
 
 ```
-/status              # Quick summary
-/status detail       # Full phase and task breakdown
+/status              # Board summary
+/status detail       # Active brief's full task breakdown
 /status blockers     # What needs your input
-/status requirements # Requirement → task coverage
+/status requirements # Requirement → subtask coverage
 ```
 
-## What You'll Be Asked During Orchestration
+## When the System Needs You
 
-The system runs autonomously but pauses for you at these points:
+The runner parks anything that needs a human and keeps working on everything else. When nothing runnable remains, the brief moves to `briefs/3-blocked/` and the runner announces **NEEDS HUMAN INTERVENTION** — a distinct terminal from done, never reported as success.
 
 | When | What to do |
 |------|-----------|
 | **Push to deploy** | Review the diff, run `git push` (Render auto-deploys on commit) |
-| **Missing env var** | Set it in Render Dashboard, reply to the orchestrator |
-| **Unclear requirement** | Answer the question, orchestrator records your decision |
+| **Missing env var** | Set it in Render Dashboard |
+| **Unclear requirement / decision needed** | Open the blocked brief, write your answer on the blocker's `Resolution:` line |
 | **Design review** (optional) | Check `session/design-direction.md` after first frontend task |
+
+After answering, run `/orchestrate` — the brief moves back to `2-active/` and work resumes with your answers applied.
 
 ## Re-Onboarding
 
@@ -159,4 +163,4 @@ python /path/to/software-factory/onboard.py --reconfigure
 
 ## Diagnostic: Trajectory
 
-After each orchestration run, `session/trajectory.md` contains the full agentic trajectory — every discrete step taken by the orchestrator and workers. Use this for evaluating harness behavior and diagnosing issues.
+Each brief gets `session/{brief-id}/trajectory.md` — the curated agentic trace written by the runner and workers — plus `session/{brief-id}/trajectory.jsonl`, a deterministic machine-parseable log written automatically by a PostToolUse hook for every subagent call. Use these for evaluating harness behavior and diagnosing issues.

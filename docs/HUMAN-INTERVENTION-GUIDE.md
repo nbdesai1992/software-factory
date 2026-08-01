@@ -138,9 +138,9 @@ You can check for blockers at any time with `/status blockers`.
 **Symptom:** Blocker with type `unclear-requirement`, describing what's ambiguous.
 
 **What to do:**
-- Read the blocker carefully — it will describe the ambiguity and often suggest options
-- Make a decision and respond
-- The orchestrator records your decision in `session/decisions.md` for future reference
+- Read the blocker in the brief carefully — it describes the ambiguity and lists options
+- Write your decision on the blocker's `Resolution:` line, then run `/orchestrate`
+- The runner records your decision in the brief's Progress Log for future reference
 
 **Example:** "The spec says 'users can share content' but doesn't specify: (1) share via link, (2) share to specific users, or (3) both. Which approach?"
 
