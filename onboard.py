@@ -37,6 +37,7 @@ class ProjectConfig:
     database: str = "none"
     deploy_platform: str = "none"
     env_group_name: str = "general_builder_keys"
+    render_workspace: str = ""
     auth_provider: str = "none"
     design_context: str = ""
     dev_server_port: int = 3000
@@ -55,6 +56,7 @@ class ProjectConfig:
             "{{DATABASE}}": self.database,
             "{{DEPLOY_PLATFORM}}": self.deploy_platform,
             "{{ENV_GROUP_NAME}}": self.env_group_name,
+            "{{RENDER_WORKSPACE}}": self.render_workspace or "(not pinned)",
             "{{AUTH_PROVIDER}}": self.auth_provider,
             "{{AUTH_SECTION}}": self._auth_section(),
             "{{DESIGN_CONTEXT}}": self.design_context,
@@ -181,6 +183,11 @@ def interview() -> ProjectConfig:
     if config.deploy_platform != "none":
         config.env_group_name = ask(
             "Render shared env group name (for API keys)", "general_builder_keys"
+        )
+
+    if config.deploy_platform == "render":
+        config.render_workspace = ask(
+            "Render workspace to pin (ALL Render ops blocked outside it; blank = no pin)"
         )
 
     # ── Authentication ──
@@ -696,6 +703,13 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
         shutil.copy2(hook_file, dest)
         dest.chmod(0o755)
         print(f"    + .claude/hooks/{hook_file.name}")
+
+    # Workspace pin — the render-workspace-guard hook fail-closes Render
+    # CLI/API commands unless the current workspace matches this file.
+    if config.deploy_platform == "render" and config.render_workspace:
+        pin_path = claude_dir / "render-workspace"
+        pin_path.write_text(config.render_workspace + "\n", encoding="utf-8")
+        print(f"    + .claude/render-workspace (pinned to '{config.render_workspace}')")
 
     # ── 5. CLAUDE.md ──
     claude_tpl = templates / "CLAUDE.md.tpl"

@@ -11,11 +11,13 @@ argument-hint: "[logs|deploy|status|create|blueprint|help]"
 
 ## Pre-Flight: Verify Workspace
 
-Before ANY Render operation, verify you're in the correct workspace:
+The ONLY authorized workspace for this project is **{{RENDER_WORKSPACE}}**. A PreToolUse hook (`render-workspace-guard`) enforces this mechanically: Render CLI/API commands are blocked unless `render workspace current` matches the pin in `.claude/render-workspace`, and `render workspace set` may only target the pinned workspace.
+
+Before ANY Render operation, verify:
 ```bash
 render workspace current -o json
 ```
-If the workspace name doesn't match the project's expected workspace, raise a blocker. Do NOT proceed with operations in the wrong workspace — services could be created or modified in the wrong account.
+If it doesn't match **{{RENDER_WORKSPACE}}**, run `render workspace set {{RENDER_WORKSPACE}}`. If that fails, raise a blocker. NEVER operate in any other workspace — services would be created or modified in the wrong account. Do not edit or delete `.claude/render-workspace` to get around a block.
 
 ## render.yaml Is the Source of Truth
 

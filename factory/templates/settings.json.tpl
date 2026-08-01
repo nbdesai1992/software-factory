@@ -38,6 +38,17 @@
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/render-workspace-guard.sh"
+          }
+        ]
+      }
     ]
   }
 }
