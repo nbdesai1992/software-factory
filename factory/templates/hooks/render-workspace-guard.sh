@@ -3,8 +3,12 @@
 # software-factory onboarding)
 #
 # Fail-closed workspace pin: Render CLI/API commands are blocked unless the
-# current Render workspace matches the name in .claude/render-workspace.
-# If that pin file is absent or empty, the guard is a no-op (project not
+# current Render workspace matches the pin in .claude/render-workspace.
+# The pin file may hold MULTIPLE lines — any mix of the workspace name and
+# its tea-... ID — and a command/workspace matching ANY line passes. Pin by
+# ID as well as name where possible: Render workspace names can carry
+# invisible whitespace that defeats exact-name matching.
+# If the pin file is absent or empty, the guard is a no-op (project not
 # pinned). Exit 2 blocks the tool call and feeds stderr back to Claude.
 
 INPUT=$(cat)
@@ -12,8 +16,9 @@ cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null || exit 0
 
 PIN_FILE=".claude/render-workspace"
 [ -f "$PIN_FILE" ] || exit 0
-PINNED=$(head -1 "$PIN_FILE" | tr -d '[:space:]')
-[ -z "$PINNED" ] && exit 0
+PINS=$(grep -v '^[[:space:]]*$' "$PIN_FILE")
+[ -z "$PINS" ] && exit 0
+PIN_LABEL=$(printf '%s\n' "$PINS" | head -1)
 
 export HOOK_INPUT="$INPUT"
 CMD=$(python3 -c 'import json, os
@@ -28,23 +33,23 @@ if ! printf '%s' "$CMD" | grep -qE '(^|[;&|[:space:]])render[[:space:]]+(workspa
   exit 0
 fi
 
-# Workspace switching: only to the pinned workspace, never anywhere else.
+# Workspace switching: only to the pinned workspace (by any pinned name/ID).
 if printf '%s' "$CMD" | grep -qE '(^|[;&|[:space:]])render[[:space:]]+workspace[[:space:]]+set'; then
-  if printf '%s' "$CMD" | grep -qF "$PINNED"; then
+  if printf '%s' "$CMD" | grep -qF -f <(printf '%s\n' "$PINS"); then
     exit 0
   fi
-  echo "BLOCKED by render-workspace-guard: this project is pinned to Render workspace '$PINNED'. 'render workspace set' may only target '$PINNED'." >&2
+  echo "BLOCKED by render-workspace-guard: this project is pinned to Render workspace '$PIN_LABEL'. 'render workspace set' may only target the pinned workspace (accepted identifiers: $(printf '%s' "$PINS" | tr '\n' ' '))." >&2
   exit 2
 fi
 
 # Everything else: verify the current workspace matches the pin. Fail closed.
 CURRENT=$(render workspace current -o json 2>/dev/null)
 if [ -z "$CURRENT" ]; then
-  echo "BLOCKED by render-workspace-guard: could not verify the current Render workspace (render CLI missing or not logged in). Run 'render login' then 'render workspace set $PINNED'. This project only operates in '$PINNED'." >&2
+  echo "BLOCKED by render-workspace-guard: could not verify the current Render workspace (render CLI missing or not logged in). Run 'render login' then 'render workspace set $PIN_LABEL'. This project only operates in '$PIN_LABEL'." >&2
   exit 2
 fi
-if ! printf '%s' "$CURRENT" | grep -qF "$PINNED"; then
-  echo "BLOCKED by render-workspace-guard: the current Render workspace does not match the pinned workspace '$PINNED'. Run 'render workspace set $PINNED' before any Render operation. Never operate in another workspace." >&2
+if ! printf '%s' "$CURRENT" | grep -qF -f <(printf '%s\n' "$PINS"); then
+  echo "BLOCKED by render-workspace-guard: the current Render workspace does not match the pinned workspace '$PIN_LABEL'. Run 'render workspace set $PIN_LABEL' (or set by pinned ID) before any Render operation. Never operate in another workspace." >&2
   exit 2
 fi
 exit 0
