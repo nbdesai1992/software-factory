@@ -8,7 +8,7 @@ project-specific CLAUDE.md and settings.
 
 Usage:
     python onboard.py                       # Setup in current directory
-    python onboard.py /path/to/project      # Setup in target directory
+    python onboard.py /path/to/project      # Setup in target dir (created if missing)
     python onboard.py --reconfigure         # Re-run with saved config
 """
 
@@ -16,6 +16,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
@@ -618,6 +619,88 @@ def generate_frontend_skeleton(config: ProjectConfig, target: Path):
 
 
 # ──────────────────────────────────────────────
+# Git Repository
+# ──────────────────────────────────────────────
+
+def run_cmd(cmd: list, cwd: Path) -> tuple:
+    """Run a command, returning (ok, combined output)."""
+    try:
+        result = subprocess.run(
+            cmd, cwd=str(cwd), capture_output=True, text=True, timeout=180
+        )
+        return result.returncode == 0, (result.stdout + result.stderr).strip()
+    except FileNotFoundError:
+        return False, f"{cmd[0]}: command not found"
+    except subprocess.TimeoutExpired:
+        return False, f"{' '.join(cmd)}: timed out"
+
+
+def setup_git_repo(config: ProjectConfig, target: Path):
+    """Initialize git, then optionally create and link a GitHub remote.
+
+    Render deploys by watching a GitHub remote, so a project without one
+    cannot reach the Blueprint Instance step.
+    """
+    if (target / ".git").is_dir():
+        print("    . git repo (already initialized)")
+    else:
+        ok, out = run_cmd(["git", "init", "-b", "main"], target)
+        if not ok:
+            print(f"    ! git init failed: {out.splitlines()[0] if out else 'unknown error'}")
+            return
+        print("    + git init (branch: main)")
+
+    ok, remotes = run_cmd(["git", "remote"], target)
+    if ok and remotes:
+        print(f"    . remote '{remotes.split()[0]}' already configured")
+    else:
+        gh_ok, _ = run_cmd(["gh", "auth", "status"], target)
+        if not gh_ok:
+            print("    - no GitHub remote (gh CLI missing or not authenticated)")
+            print(f"      Add one later: gh repo create {config.project_slug} "
+                  f"--private --source=. --remote=origin")
+        elif ask(f"Create GitHub repo '{config.project_slug}'? (y/n)", "n").lower() in ("y", "yes"):
+            visibility = ask_choice(
+                "Repository visibility:", ["private", "public"], default="private"
+            )
+            ok, out = run_cmd(
+                ["gh", "repo", "create", config.project_slug,
+                 f"--{visibility}", "--source=.", "--remote=origin"],
+                target,
+            )
+            if ok:
+                print(f"    + GitHub repo '{config.project_slug}' ({visibility}) → remote 'origin'")
+            else:
+                print(f"    ! gh repo create failed: {out.splitlines()[0] if out else 'unknown error'}")
+        else:
+            print("    - skipped GitHub repo creation")
+
+    # Initial commit — Render needs the skeleton + render.yaml on the remote
+    ok, dirty = run_cmd(["git", "status", "--porcelain"], target)
+    if not ok or not dirty:
+        return
+    if ask("Commit the factory setup? (y/n)", "y").lower() in ("n", "no"):
+        print("    - skipped initial commit")
+        return
+    run_cmd(["git", "add", "-A"], target)
+    ok, out = run_cmd(["git", "commit", "-m", "factory setup"], target)
+    if not ok:
+        print(f"    ! commit failed: {out.splitlines()[0] if out else 'unknown error'}")
+        return
+    print("    + commit 'factory setup'")
+
+    ok, remotes = run_cmd(["git", "remote"], target)
+    if not (ok and remotes):
+        return
+    if ask("Push to the remote now? (y/n)", "y").lower() in ("n", "no"):
+        print("    - skipped push (run 'git push -u origin main' before the Blueprint step)")
+        return
+    ok, out = run_cmd(["git", "push", "-u", "origin", "HEAD"], target)
+    print("    + pushed to origin" if ok
+          else f"    ! push failed: {out.splitlines()[-1] if out else 'unknown error'}")
+
+
+# ──────────────────────────────────────────────
 # Project Setup
 # ──────────────────────────────────────────────
 
@@ -767,6 +850,10 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
     config_path.write_text(json.dumps(asdict(config), indent=2) + "\n", encoding="utf-8")
     print(f"    + factory-config.json (for re-onboarding)")
 
+    # ── 10. Git repo + remote (last: .gitignore and all files exist by now) ──
+    print("\n  Git:")
+    setup_git_repo(config, target)
+
     # ── Done ──
     print()
     print("=" * 60)
@@ -836,7 +923,14 @@ def main():
         target = Path.cwd()
 
     if not target.exists():
-        print(f"Error: Target directory does not exist: {target}")
+        print(f"\n  Target directory does not exist: {target}")
+        if input("  Create it? [Y/n]: ").strip().lower() in ("n", "no"):
+            print("  Aborted.")
+            sys.exit(0)
+        target.mkdir(parents=True)
+        print(f"  Created {target}")
+    elif not target.is_dir():
+        print(f"Error: Target path is not a directory: {target}")
         sys.exit(1)
 
     print(f"\n  Target project: {target}")

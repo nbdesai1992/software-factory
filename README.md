@@ -24,7 +24,7 @@ That's it. The factory handles decomposition, coding, testing, visual design, an
                               execute subtasks
 ```
 
-1. **Onboard** — Run the setup wizard. Answer a few questions about your stack. The factory installs skills, agents, hooks, and the brief board into your project.
+1. **Onboard** — Run the setup wizard, pointed at a project directory (existing or not). Answer a few questions about your stack. The factory creates the repo, installs skills, agents, hooks, and the brief board, and pushes it to GitHub.
 2. **Spec** — Describe what you want. The spec skill interviews you and produces a **goal brief**: a self-contained card on the `briefs/` Kanban board with requirements, acceptance criteria, and an embedded execution protocol — plus a ready-to-paste `/goal` prompt.
 3. **Run** — Paste the `/goal` prompt. Claude Code keeps running turns until the brief reaches a terminal folder; each turn the runner delegates subtasks to specialized worker subagents, updates the brief, and proves board state. Human blockers are parked while everything else continues — the brief only lands in `3-blocked/` when nothing runnable remains.
 4. **Deploy** — Infrastructure-first workflow. Backend deploys and tests against a real database before frontend work begins. You `git push` when ready — Render auto-deploys.
@@ -79,32 +79,23 @@ git clone https://github.com/nbdesai1992/software-factory.git
 
 Keep this somewhere permanent. It's the source — you'll point it at each new project.
 
-### Step 2: Create your project repo
+### Step 2: Onboard a new project
 
 ```bash
-# Create a new repo on GitHub (or clone an existing shell repo)
-git clone https://github.com/you/my-new-app.git
-cd my-new-app
+python /path/to/software-factory/onboard.py ~/code/my-new-app
 ```
 
-### Step 3: Onboard
+The directory doesn't need to exist — the wizard offers to create it. It asks about your stack (Next.js? FastAPI? PostgreSQL? Render?) and installs everything: 8 skills, 3 worker agents, CLAUDE.md, render.yaml, settings.json, hooks, and skeleton `backend/` + `frontend/` apps. Then it runs `git init` and — if the `gh` CLI is authenticated — offers to create the GitHub repo, commit, and push. Point it at an existing clone instead and it leaves your repo and remote untouched.
 
-```bash
-python /path/to/software-factory/onboard.py
-```
-
-The wizard asks about your stack (Next.js? FastAPI? PostgreSQL? Render?) and installs everything — 8 skills, 3 worker agents, CLAUDE.md, render.yaml, settings.json — directly into your project's `.claude/` directory. Your project is now factory-enabled.
-
-### Step 4: Set up Render (one-time)
+### Step 3: Set up Render (one-time)
 
 ```bash
 brew install render && render login
-git add . && git commit -m "factory setup" && git push
 ```
 
 Then in the Render Dashboard: **Blueprints → New Blueprint Instance → select your repo.** Render reads `render.yaml` and creates your services + database. First deploy will fail (no code yet) — that's expected.
 
-### Step 5: Build
+### Step 4: Build
 
 ```bash
 claude   # Open Claude Code in your project

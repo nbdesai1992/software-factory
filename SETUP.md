@@ -14,21 +14,12 @@ Verify Render is ready:
 render workspace current -o json
 ```
 
-## Step 1: Create an Empty Shell Repo
+## Step 1: Run the Factory Onboarding
 
-Create a new empty repository on GitHub (no README, no .gitignore — completely empty), then clone it locally:
-
-```bash
-git clone https://github.com/your-username/your-project.git
-cd your-project
-```
-
-## Step 2: Run the Factory Onboarding
-
-From inside your project directory:
+Point the onboarding script at a project directory. It does not have to exist yet — you'll be asked whether to create it:
 
 ```bash
-python /path/to/software-factory/onboard.py
+python /path/to/software-factory/onboard.py ~/code/your-project
 ```
 
 The wizard asks about your project (name, description, domain, design direction, tech stack, deployment platform) and installs everything:
@@ -42,19 +33,13 @@ The wizard asks about your project (name, description, domain, design direction,
 - `render.yaml` — Render blueprint defining your services + database
 - `.gitignore` — Updated with `session/`, `.env`
 
-## Step 3: Commit and Push
+Finally it sets up git: `git init`, then — if the `gh` CLI is installed and authenticated — offers to create a GitHub repo, wire it up as `origin`, commit the setup, and push. Decline any of these and it prints the command to run yourself. Render's GitHub integration detects `render.yaml` as soon as the push lands.
 
-```bash
-git add .
-git commit -m "factory setup"
-git push
-```
+Already have a repo cloned? Just run `python /path/to/software-factory/onboard.py` from inside it — the existing git repo and remote are left alone.
 
-This pushes the render.yaml, skeleton apps, and all configs to GitHub. Render's GitHub integration will detect the render.yaml.
+## Step 2: Create Env Group + Blueprint Instance
 
-## Step 4: Create Env Group + Blueprint Instance
-
-### 4a: Create shared env group (one-time per workspace)
+### 2a: Create shared env group (one-time per workspace)
 
 If you don't already have a `general_builder_keys` env group in your Render workspace:
 
@@ -64,7 +49,7 @@ If you don't already have a `general_builder_keys` env group in your Render work
 
 The `render.yaml` references this group via `fromGroup` — all services will automatically receive these keys when the blueprint is applied.
 
-### 4b: Create Clerk application (if auth is configured)
+### 2b: Create Clerk application (if auth is configured)
 
 If you chose Clerk during onboarding:
 
@@ -78,7 +63,7 @@ If you chose Clerk during onboarding:
 
 These are declared as `sync: false` in render.yaml — you set the values manually.
 
-### 4c: Apply Blueprint Instance
+### 2c: Apply Blueprint Instance
 
 This is a one-time manual step. Render does not support creating Blueprint Instances via API or CLI — it must be done in the Dashboard.
 
@@ -96,7 +81,7 @@ This is a one-time manual step. Render does not support creating Blueprint Insta
 
 **Important:** The infra-worker will never create services via API. It only verifies that services exist (created by you here) and uses them for deployments, logs, and health checks. If you skip this step, the orchestrator will raise a blocker asking you to do it.
 
-## Step 5: Open Claude Code
+## Step 3: Open Claude Code
 
 ```bash
 claude
@@ -104,7 +89,7 @@ claude
 
 Open Claude Code in your project directory. It will load CLAUDE.md and all the installed skills.
 
-## Step 6: Create a Goal Brief
+## Step 4: Create a Goal Brief
 
 ```
 /spec create "describe what you want to build"
@@ -112,7 +97,7 @@ Open Claude Code in your project directory. It will load CLAUDE.md and all the i
 
 The spec skill interviews you about features, scope, constraints, and success criteria, then writes a goal brief to `briefs/1-backlog/` and hands you a ready-to-paste `/goal` prompt. Review and approve the brief.
 
-## Step 7: Run It
+## Step 5: Run It
 
 Paste the `/goal` prompt the spec skill gave you — Claude Code keeps running turns until the brief reaches a terminal folder (`briefs/4-done/` complete, or `briefs/3-blocked/` needs your input). Or run one turn at a time:
 
@@ -129,7 +114,7 @@ Either way, the runner takes over:
 5. **Deploy frontend** — Commits code, asks you to `git push`. Render auto-deploys.
 6. **Verify** — Screenshots the deployed site, checks against requirements
 
-## Step 8: Check Progress
+## Step 6: Check Progress
 
 At any time:
 

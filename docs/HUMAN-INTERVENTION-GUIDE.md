@@ -63,7 +63,7 @@ You can check for blockers at any time with `/status blockers`.
    - Backend: `CLERK_SECRET_KEY`
 4. Reply to the orchestrator
 
-**Prevention:** Create your Clerk app and set the keys in Render BEFORE running `/orchestrate`. See SETUP.md Step 4b.
+**Prevention:** Create your Clerk app and set the keys in Render BEFORE running `/orchestrate`. See SETUP.md Step 2b.
 
 ---
 
